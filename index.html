@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="author" content="Michael Stocklin">
+<title>Brood Trace 2.0</title>
+<meta name="description" content="Interactive Parentage-Based Tagging map of the Nooksack River — mainstem, North, Middle and South Forks.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>html,body{margin:0;padding:0}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<style>
+:root{
+  color-scheme:dark;
+  --ground:#06121A; --panel:#0B1C25; --panel2:#0F2530; --raise:#132D39;
+  --line:#1B3844; --line2:#26505E;
+  --text:#DCEEF2; --muted:#8FAEB6; --faint:#5F7F88;
+  --accent:#FF8A66; --accent-ink:#1A0C07; --glow:#6FE3F2;
+  --main:#6FE3F2; --nf:#86AEFF; --mf:#F2C46D; --sf:#CFA2FF;
+  --kc:#86AEFF; --sk:#CFA2FF; --fh:#E4DCC6; --nat:#62D69E; --unr:#4F6A73;
+  --display:"Chakra Petch","Rajdhani","Segoe UI",system-ui,sans-serif;
+  --body:"Manrope","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --r:10px;
+}
+*{box-sizing:border-box}
+html,body{background:var(--ground);color:var(--text)}
+body{font:15px/1.55 var(--body);-webkit-font-smoothing:antialiased;min-height:100%;
+  background:radial-gradient(1200px 600px at 80% -10%,#0E2733 0%,transparent 60%),var(--ground)}
+a{color:var(--glow)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+h1,h2,h3{font-family:var(--display);font-weight:600;letter-spacing:.02em;text-wrap:balance;margin:0}
+.mono{font-family:var(--mono)}
+.eyebrow{font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+
+/* ---------- header ---------- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:rgba(6,18,26,.86);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top-in{max-width:1480px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text);margin-right:auto}
+.brand svg{flex:none}
+.brand b{font:700 17px/1 var(--display);letter-spacing:.08em;text-transform:uppercase}
+.brand small{display:block;font:400 10.5px/1.2 var(--mono);color:var(--muted);letter-spacing:.1em;margin-top:3px}
+nav.tabs{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px}
+nav.tabs button{border:0;background:transparent;padding:7px 14px;border-radius:999px;cursor:pointer;
+  font:600 12.5px/1 var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);transition:color .15s,background .15s}
+nav.tabs button:hover{color:var(--text)}
+nav.tabs button[aria-selected="true"]{background:var(--raise);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+nav.tabs .short{display:none}
+.brand .ver{font-style:normal;color:var(--accent)}
+.use-chip{font:500 10.5px/1 var(--mono);letter-spacing:.12em;color:var(--accent);border:1px solid rgba(255,138,102,.4);padding:6px 9px;border-radius:999px;white-space:nowrap}
+
+main{max-width:1480px;margin:0 auto;padding-inline:16px;padding-block:18px 8px}
+section.view[hidden]{display:none}
+
+/* ---------- atlas ---------- */
+.atlas{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px}
+.mapwrap{position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#071820;
+  height:min(74vh,720px);min-height:360px;touch-action:none}
+#map{width:100%;height:100%;display:block;cursor:grab;user-select:none;-webkit-user-select:none}
+#map.dragging{cursor:grabbing}
+.mapwrap::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at center,transparent 55%,rgba(3,10,14,.55) 100%)}
+.loading{position:absolute;left:14px;bottom:52px;font:500 11px var(--mono);color:var(--muted);letter-spacing:.1em;z-index:3}
+.hud{position:absolute;z-index:4;display:flex;gap:8px;align-items:center}
+.hud.tl{top:12px;left:12px;flex-wrap:wrap;right:70px}
+.hud.tr{top:12px;right:12px;flex-direction:column}
+.hud.bl{bottom:12px;left:12px}
+.hud.br{bottom:12px;right:12px}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:999px;border:1px solid var(--line2);
+  background:rgba(8,24,32,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);cursor:pointer;
+  font:600 11px/1 var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.chip i{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.35}
+.chip[aria-pressed="true"]{color:var(--text)}
+.chip[aria-pressed="true"] i{opacity:1;box-shadow:0 0 8px currentColor}
+.chip.c-riv i{color:var(--main)} .chip.c-hat i{color:var(--accent)} .chip.c-smp i{color:var(--nat)} .chip.c-rel i{color:var(--fh)} .chip.c-lab i{color:var(--muted)}
+.zbtn{width:36px;height:36px;border-radius:9px;border:1px solid var(--line2);background:rgba(8,24,32,.85);cursor:pointer;
+  display:grid;place-items:center;font:600 18px/1 var(--mono);color:var(--text)}
+.zbtn:hover{border-color:var(--glow)}
+.readout{font:500 11px/1.4 var(--mono);color:var(--muted);background:rgba(8,24,32,.82);border:1px solid var(--line);padding:6px 9px;border-radius:8px;font-variant-numeric:tabular-nums}
+.scalebar{display:flex;flex-direction:column;gap:4px;font:500 10.5px var(--mono);color:var(--muted);background:rgba(8,24,32,.82);border:1px solid var(--line);padding:6px 9px;border-radius:8px}
+.scalebar span.bar{height:6px;border:1.5px solid var(--text);border-top:0;display:block}
+.tip{position:absolute;z-index:5;pointer-events:none;background:rgba(8,24,32,.95);border:1px solid var(--line2);
+  padding:6px 9px;border-radius:7px;font:600 12px var(--display);letter-spacing:.05em;white-space:nowrap;transform:translate(-50%,calc(-100% - 12px))}
+.tip small{display:block;font:400 10.5px var(--mono);color:var(--muted);letter-spacing:.04em}
+
+/* map svg styles */
+.riv{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.riv-halo{opacity:.18}
+.riv-flow{stroke-dasharray:2 14;opacity:.9;animation:flow 2.4s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-32}}
+.reach.dim .riv-core,.reach.dim .riv-flow{opacity:.28}
+.reach.on .riv-halo{opacity:.42}
+.hit{fill:none;stroke:transparent;cursor:pointer;pointer-events:stroke}
+.trib{fill:none;stroke:#5AA7B5;stroke-opacity:.55}
+.pt{cursor:pointer}
+.pt .ring{fill:none;stroke-width:1.2}
+.pt.sel .ring{stroke:var(--accent)!important;stroke-width:2}
+.lbl{font-family:var(--body);font-weight:600;paint-order:stroke;stroke:#061219;stroke-width:3px;stroke-linejoin:round}
+.lbl-town{fill:#C9DDE2;font-size:10.5px}
+.lbl-peak{fill:#E8F3F6;font-size:10.5px;font-style:italic}
+.lbl-water{fill:#5FA9B8;font-size:11px;font-style:italic;letter-spacing:.2em;font-weight:500}
+.lbl-reach{font-family:var(--display);font-size:11px;letter-spacing:.16em;font-weight:600}
+.grat{stroke:#9FE9F5;stroke-opacity:.07}
+.grat-l{fill:#6FA6B2;font:500 8px var(--mono);opacity:.7}
+@media (prefers-reduced-motion:reduce){.riv-flow{animation:none}*{scroll-behavior:auto!important;transition:none!important}}
+
+/* ---------- inspector ---------- */
+.insp{border:1px solid var(--line);border-radius:14px;background:var(--panel);display:flex;flex-direction:column;
+  height:min(74vh,720px);min-height:360px;overflow:hidden}
+.insp-h{padding:14px 16px 12px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
+.insp-h h2{font-size:20px;line-height:1.15}
+.insp-h .back{border:1px solid var(--line2);background:var(--panel2);border-radius:8px;width:30px;height:30px;cursor:pointer;flex:none;display:grid;place-items:center}
+.insp-b{padding:14px 16px 18px;overflow:auto;display:flex;flex-direction:column;gap:16px;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.insp-b p{margin:0;color:#C3D8DD;font-size:14px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13px;margin:0}
+.kv dt{font:500 10.5px/1.9 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.kv dd{margin:0}
+.list{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.row-btn{width:100%;display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:9px;border:1px solid var(--line);
+  background:var(--panel2);cursor:pointer;text-align:left;transition:border-color .15s,background .15s}
+.row-btn:hover{border-color:var(--line2);background:var(--raise)}
+.row-btn .sw{width:22px;height:4px;border-radius:2px;flex:none;box-shadow:0 0 8px currentColor;background:currentColor}
+.row-btn .dot{width:10px;height:10px;border-radius:50%;flex:none;border:2px solid currentColor}
+.row-btn b{font:600 13.5px/1.2 var(--body)}
+.row-btn small{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.row-btn .go{margin-left:auto;color:var(--faint);font-family:var(--mono)}
+.t{background:none;border:0;padding:0;color:inherit;cursor:help;text-decoration:underline dotted var(--glow);text-underline-offset:3px;font:inherit}
+.t:hover{color:var(--glow)}
+.note{font-size:12px!important;color:var(--muted)!important;border-left:2px solid var(--accent);padding-left:10px}
+.tag{display:inline-block;font:500 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:4px 7px;border-radius:5px;border:1px solid var(--line2);color:var(--muted)}
+.tag.sim{color:var(--accent);border-color:rgba(255,138,102,.45)}
+
+/* composition bar */
+.comp{display:flex;height:14px;border-radius:4px;overflow:hidden;gap:2px}
+.comp span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
+.legend b{color:var(--text);font:500 12px var(--mono);font-variant-numeric:tabular-nums}
+
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:9px}
+table.fish{border-collapse:collapse;width:100%;font:400 12px/1.3 var(--mono);font-variant-numeric:tabular-nums}
+table.fish th{font:500 9.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 9px;background:var(--panel2);border-bottom:1px solid var(--line);white-space:nowrap}
+table.fish td{padding:7px 9px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.fish tr:last-child td{border-bottom:0}
+.pill{display:inline-flex;align-items:center;gap:5px}
+.pill i{width:7px;height:7px;border-radius:50%}
+.ghost{border:1px solid var(--line2);background:transparent;border-radius:8px;padding:7px 11px;cursor:pointer;font:600 12px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ghost:hover{color:var(--text);border-color:var(--glow)}
+
+/* ---------- popover ---------- */
+.pop{position:fixed;z-index:60;max-width:320px;background:#0D2430;border:1px solid var(--line2);border-radius:10px;padding:12px 14px;
+  box-shadow:0 12px 40px rgba(0,0,0,.5);font-size:13.5px}
+.pop h4{margin:0 0 4px;font:600 14px var(--display);letter-spacing:.04em;color:var(--glow)}
+.pop p{margin:0;color:#C7DBE0}
+.pop button{margin-top:8px}
+
+/* ---------- brood trace ---------- */
+.tr-top{display:flex;gap:14px 24px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+#tr-sum{margin:0;max-width:92ch;font-size:15px;color:#C3D8DD;line-height:1.6}
+#tr-sum b{color:var(--text)} #tr-sum .idc{font-family:var(--mono);color:var(--glow)}
+.tr-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tr-tools input{width:230px;max-width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--line2);background:var(--panel);color:var(--text);font:500 13.5px var(--mono)}
+.tr-tools input::placeholder{color:var(--faint)}
+#tr-msg{flex-basis:100%;font-size:12.5px;color:var(--accent);margin:0}
+#tr-msg:empty{display:none}
+.tr-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px}
+.bw{position:relative;border:1px solid var(--line);border-radius:14px;height:min(76vh,760px);min-height:420px;overflow:auto;
+  background:linear-gradient(90deg,rgba(111,227,242,.025) 1px,transparent 1px) 0 0/24px 24px,var(--ground);cursor:grab;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.bw.grab{cursor:grabbing;user-select:none}
+.sizer{position:relative}
+.board{position:absolute;left:0;top:0;transform-origin:0 0;display:flex;gap:42px;padding:18px 20px 90px;align-items:flex-start}
+.wires{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.wires path{fill:none;stroke-width:1.4}
+.wires .w1{stroke:#3FB9C6;stroke-opacity:.7}.wires .w2{stroke:#8B78D8;stroke-opacity:.75}.wires .w3{stroke:#62D69E;stroke-opacity:.6;stroke-dasharray:4 4}
+.col{width:218px;display:flex;flex-direction:column;gap:12px;position:relative;z-index:1}
+.col-h{display:flex;gap:8px;align-items:flex-start;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:6px;min-height:62px}
+.col-h .num{width:18px;height:18px;border-radius:50%;background:var(--glow);color:#06121A;font:700 10.5px/18px var(--mono);text-align:center;flex:none}
+.col-h b{font:600 13px var(--display);letter-spacing:.04em}
+.col-h small{display:block;color:var(--faint);font-size:11px;line-height:1.35;margin-top:2px}
+.fc{background:#0C1E27;border:1px solid var(--line2);border-radius:10px;padding:10px 11px;display:flex;flex-direction:column;gap:7px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.fc:hover{border-color:#3B6F7E}
+.fc.root{border-color:#8B78D8;box-shadow:0 0 0 1px rgba(139,120,216,.35),0 0 24px rgba(139,120,216,.18)}
+.fc.sel{border-color:var(--accent);box-shadow:0 0 0 1px rgba(255,138,102,.4)}
+.fc-h{display:flex;align-items:center;gap:7px}
+.fc-h b{font:700 12.5px var(--mono);letter-spacing:.02em;white-space:nowrap}
+.sx{width:18px;height:18px;border:1px solid var(--line2);border-radius:50%;display:grid;place-items:center;font-size:11px;color:var(--muted);flex:none}
+.ob{margin-left:auto;font:500 9.5px/1 var(--body);padding:3px 7px;border-radius:999px;white-space:nowrap}
+.ob.hatchery{color:#F2C46D;background:rgba(242,196,109,.12);border:1px solid rgba(242,196,109,.35)}
+.ob.natural{color:#62D69E;background:rgba(98,214,158,.1);border:1px solid rgba(98,214,158,.35)}
+.ob.ret{color:#62D69E;border:1px solid rgba(98,214,158,.35)}
+.fc-m{font-size:11.5px;line-height:1.5;color:var(--muted)}
+.fc-m b{color:var(--text);font-weight:600}
+.bc{display:block;width:100%;height:22px}
+.bc.lg{height:28px}
+.fc-f{display:flex;justify-content:space-between;font:400 9.5px var(--mono);color:var(--faint);font-variant-numeric:tabular-nums}
+.fc-f .warn{color:#FF8A80}
+.fc-t{margin-top:2px;border:0;background:none;padding:6px 0 0;border-top:1px solid var(--line);display:flex;gap:7px;align-items:center;cursor:pointer;color:#9FDDE6;font-size:11.5px;text-align:left}
+.fc-t span{width:16px;height:16px;border-radius:50%;border:1px solid currentColor;display:grid;place-items:center;font:600 11px/1 var(--mono);flex:none}
+.grp{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.grp-h{font:500 9.5px var(--mono);color:var(--faint);letter-spacing:.04em;padding:2px 0}
+.more{align-self:flex-start;border:0;background:none;color:var(--glow);font-size:12px;cursor:pointer;padding:2px 0}
+.empty-card{border:1px dashed var(--line2);border-radius:10px;padding:12px;font-size:11.5px;color:var(--faint);line-height:1.5}
+.bw-wrap{position:relative;min-width:0}
+.zoomctl{position:absolute;left:12px;bottom:12px;z-index:3;display:flex;align-items:center;gap:4px;background:rgba(8,24,32,.92);border:1px solid var(--line2);border-radius:999px;padding:5px 8px}
+.zoomctl button{border:0;background:none;cursor:pointer;color:var(--text);padding:5px 9px;border-radius:999px;font:500 13px var(--body)}
+.zoomctl button:hover{background:var(--raise)}
+.zoomctl #z-v{font:500 11.5px var(--mono);color:var(--muted);min-width:40px;text-align:center}
+.zoomctl .sep{width:1px;height:18px;background:var(--line2);margin:0 4px}
+.tr-hint{position:absolute;right:360px;bottom:14px;font-size:11.5px;color:var(--faint);pointer-events:none;border:1px solid var(--line);border-radius:999px;padding:5px 12px;background:rgba(6,18,26,.85)}
+.tr-hint kbd{font:500 10px var(--mono);border:1px solid var(--line2);border-radius:4px;padding:1px 4px;color:var(--muted)}
+.tr-side{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:16px;display:flex;flex-direction:column;gap:16px;height:min(76vh,760px);min-height:420px;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line2) transparent}
+.sd-h h2{font:700 20px var(--mono);letter-spacing:.02em}
+.sd-h p{margin:3px 0 0;color:var(--muted);font-size:13px}
+.sd-h .sm{padding:5px 9px;font-size:11px;margin-bottom:10px}
+.callout{border:1px solid var(--line2);border-left:2px solid var(--glow);border-radius:8px;padding:10px 12px;font-size:13px;color:#C3D8DD;background:rgba(111,227,242,.04)}
+.callout.foot{border-left-color:var(--accent)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{border:1px solid var(--line2);border-radius:9px;padding:10px 12px;background:var(--panel2)}
+.tile b{display:block;font:600 24px var(--mono);color:var(--glow);font-variant-numeric:tabular-nums}
+.tile span{font-size:11.5px;color:var(--muted);line-height:1.35}
+.t.q{width:15px;height:15px;border:1px solid var(--line2);border-radius:50%;display:inline-grid;place-items:center;font:600 9.5px/1 var(--mono);text-decoration:none;color:var(--muted);vertical-align:1px}
+.sd-s{display:flex;flex-direction:column;gap:0}
+.sd-s h3{font:600 13.5px var(--body);letter-spacing:0;margin-bottom:8px;color:var(--text)}
+.dna-box{border:1px solid var(--line2);border-radius:9px;padding:12px;display:flex;gap:12px;align-items:center;background:#0A1A22;margin-bottom:6px}
+.dna-box span{font-size:11px;color:var(--muted);flex:none}
+.cr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;color:#C3D8DD;background:none;border-left:0;border-right:0;border-top:0;width:100%;text-align:left}
+button.cr{cursor:pointer}button.cr:hover span{color:var(--glow)}
+.cr b{font:500 12.5px var(--mono);color:var(--text);font-variant-numeric:tabular-nums}
+.cmp-row{display:grid;grid-template-columns:78px 1fr;gap:8px;align-items:center;padding:4px 0}
+.cmp-row span{font-size:11px;color:var(--text)}
+.cmp-row small{display:block;color:var(--faint);font-size:9.5px}
+.verdict.sm{margin-top:10px;gap:14px}.verdict.sm .big{font-size:20px}.verdict .warn{color:#FF8A80}
+.lnk{border:0;background:none;padding:0;color:var(--glow);font:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+
+/* ---------- method ---------- */
+.wrap-narrow{max-width:1100px;margin:0 auto}
+.lede{display:grid;grid-template-columns:1.1fr 1fr;gap:28px;align-items:end;padding-block:18px 26px;border-bottom:1px solid var(--line)}
+.lede h1{font-size:clamp(30px,4.2vw,52px);line-height:1.02;font-weight:700;letter-spacing:.01em}
+.lede h1 em{font-style:normal;color:var(--accent)}
+.lede p{margin:0;color:#C3D8DD;max-width:60ch}
+.steps{list-style:none;margin:26px 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;counter-reset:s}
+.steps li{background:var(--panel);padding:18px 18px 20px;counter-increment:s;display:flex;flex-direction:column;gap:8px}
+.steps li::before{content:"STEP " counter(s,decimal-leading-zero);font:500 10.5px var(--mono);letter-spacing:.16em;color:var(--accent)}
+.steps h3{font-size:17px}
+.steps p{margin:0;color:#BCD2D8;font-size:14px}
+.lab{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:20px;display:flex;flex-direction:column;gap:14px;margin-bottom:26px}
+.lab-h{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
+.lab-h h2{font-size:22px}
+.lab-h p{margin:4px 0 0;color:var(--muted);font-size:13.5px;max-width:62ch}
+.lab-ctl{display:flex;gap:8px;flex-wrap:wrap}
+.seg{display:flex;border:1px solid var(--line2);border-radius:9px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:8px 12px;cursor:pointer;font:600 11.5px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--raise);color:var(--text)}
+.geno-scroll{overflow-x:auto;padding-bottom:4px}
+.geno{display:grid;grid-template-columns:128px repeat(32,26px);gap:3px;align-items:center;min-width:max-content}
+.geno .nm{font:500 11px var(--mono);color:var(--muted);letter-spacing:.06em;padding-right:8px}
+.geno .nm b{display:block;color:var(--text);font:600 12px var(--display);letter-spacing:.06em}
+.gc{height:26px;border-radius:4px;display:grid;place-items:center;font:500 9.5px var(--mono);color:#06121A}
+.g0{background:#1FA3B2;color:#EAFBFD}.g1{background:#E9B44C}.g2{background:#DCEEF2}
+.gc.bad{outline:2px solid var(--accent);outline-offset:1px;background:repeating-linear-gradient(45deg,#FF8A66,#FF8A66 3px,#FFB199 3px,#FFB199 6px);color:#1A0C07}
+.gidx{font:500 8.5px var(--mono);color:var(--faint);text-align:center}
+.verdict{display:flex;gap:18px;flex-wrap:wrap;align-items:center;padding:12px 14px;border-radius:10px;background:var(--panel2);border:1px solid var(--line)}
+.verdict .big{font:700 26px var(--display);letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.verdict .ok{color:var(--nat)} .verdict .no{color:var(--accent)}
+.verdict p{margin:0;color:#C3D8DD;font-size:13.5px;flex:1;min-width:220px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:26px}
+.card{border:1px solid var(--line);border-radius:14px;padding:18px 20px;background:var(--panel)}
+.card h3{font-size:17px;margin-bottom:8px}
+.card p,.card li{color:#BCD2D8;font-size:14px}
+.card ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.cmp{width:100%;border-collapse:collapse;font-size:13.5px}
+.cmp th,.cmp td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.cmp th{font:500 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.cmp td:first-child{color:var(--muted)}
+
+/* ---------- glossary ---------- */
+.gl-top{display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding-block:10px 18px}
+.gl-top h1{font-size:30px;margin-right:auto}
+.search{position:relative;flex:1 1 300px;max-width:440px}
+.search input{width:100%;padding:11px 14px 11px 38px;border-radius:10px;border:1px solid var(--line2);background:var(--panel);color:var(--text);font:500 14.5px var(--body)}
+.search input::placeholder{color:var(--faint)}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%)}
+.cats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.gl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.gl{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--panel);scroll-margin-top:90px}
+.gl.flash{border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,138,102,.15)}
+.gl h3{font:600 15.5px var(--display);letter-spacing:.03em}
+.gl .cat{font:500 9.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin:3px 0 7px}
+.gl p{margin:0;color:#BCD2D8;font-size:13.8px}
+.empty{color:var(--muted);padding:30px 0}
+
+/* ---------- terms ---------- */
+.terms{max-width:780px;margin:0 auto;padding-block:10px 20px}
+.terms h1{font-size:32px;margin-bottom:6px}
+.terms h2{font-size:17px;margin:26px 0 8px;color:var(--glow)}
+.terms p,.terms li{color:#C3D8DD;font-size:14.5px;max-width:68ch}
+.terms ul{padding-left:20px}
+.terms .meta{color:var(--muted);font:500 12px var(--mono)}
+
+/* ---------- gate ---------- */
+.gate{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:16px;background:rgba(3,10,14,.62);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+.gate-card{width:min(560px,100%);max-height:calc(100% - 20px);overflow:auto;background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:22px 22px 20px;box-shadow:0 30px 80px rgba(0,0,0,.55)}
+.gate-card h2{font-size:22px;margin:6px 0 10px}
+.gate-card p,.gate-card li{color:#C3D8DD;font-size:14px}
+.gate-card ul{padding-left:18px;margin:10px 0 14px}
+.check{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--line2);border-radius:10px;background:var(--panel2);cursor:pointer;font-size:14px}
+.check input{margin-top:3px;accent-color:#FF8A66;width:16px;height:16px;flex:none}
+.gate-act{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.btn{border:0;border-radius:9px;padding:11px 18px;cursor:pointer;background:var(--accent);color:var(--accent-ink);font:700 13px var(--display);letter-spacing:.1em;text-transform:uppercase}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ---------- footer ---------- */
+footer{max-width:1480px;margin:18px auto 0;padding-inline:16px;padding-block:18px 26px;border-top:1px solid var(--line);
+  display:flex;gap:10px 24px;flex-wrap:wrap;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--muted)}
+footer .by{font:600 13px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--text)}
+footer button{background:none;border:0;color:var(--glow);cursor:pointer;padding:0;font:inherit;text-decoration:underline;text-underline-offset:3px}
+
+@media (max-width:1060px){
+  .atlas{grid-template-columns:1fr}
+  .insp{height:auto;max-height:none}
+  .steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tr-grid{grid-template-columns:1fr}
+  .tr-side{height:auto;min-height:0}
+}
+@media (max-width:720px){
+  .top-in{gap:10px}
+  .use-chip{display:none}
+  nav.tabs .long{display:none} nav.tabs .short{display:inline}
+  nav.tabs{width:100%;justify-content:space-between}
+  nav.tabs button{flex:1;padding:8px 6px;font-size:11px}
+  .mapwrap{height:auto;min-height:0;aspect-ratio:856/560}
+  .hud.tl{right:56px}
+  .chip{padding:5px 8px;font-size:10px}
+  .lede,.two{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr}
+  .readout{display:none}
+  .bw{height:70vh;min-height:360px}
+  .tr-tools input{width:100%}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="#atlas" data-go="atlas" aria-label="Brood Trace 2.0 home">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+        <rect x="1" y="1" width="32" height="32" rx="9" fill="#0F2530" stroke="#26505E"/>
+        <path d="M6 27 C11 23 13 19 16 17 C18 13 17 9 20 6" stroke="#6FE3F2" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M16 17 C20 16 24 12 28 11" stroke="#86AEFF" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <path d="M16 17 C19 20 23 22 27 26" stroke="#CFA2FF" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <circle cx="16" cy="17" r="2.4" fill="#FF8A66"/>
+      </svg>
+      <span><b>Brood Trace <em class="ver">2.0</em></b><small>PARENTAGE-BASED TAGGING · NOOKSACK RIVER</small></span>
+    </a>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" data-go="atlas" aria-selected="true">Map</button>
+      <button role="tab" data-go="trace" aria-selected="false"><span class="long">Brood Trace</span><span class="short">Trace</span></button>
+      <button role="tab" data-go="method" aria-selected="false"><span class="long">How PBT works</span><span class="short">Method</span></button>
+      <button role="tab" data-go="glossary" aria-selected="false">Glossary</button>
+      <button role="tab" data-go="terms" aria-selected="false">Terms</button>
+    </nav>
+    <span class="use-chip">EDUCATIONAL · PROFESSIONAL USE</span>
+  </div>
+</header>
+
+<main>
+<!-- ================= ATLAS ================= -->
+<section class="view" id="v-atlas" aria-label="Map">
+  <div class="atlas">
+    <div class="mapwrap" id="mapwrap">
+      <svg id="map" viewBox="0 0 856 440" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Map of the Nooksack River basin with the mainstem and North, Middle and South Forks">
+        <defs>
+          <radialGradient id="pulse"><stop offset="0" stop-color="#FF8A66" stop-opacity=".55"/><stop offset="1" stop-color="#FF8A66" stop-opacity="0"/></radialGradient>
+        </defs>
+        <rect x="-2000" y="-2000" width="5000" height="5000" fill="#061521"/>
+        <image id="terrain" x="0" y="0" width="856" height="440" preserveAspectRatio="none"/>
+        <g id="g-grat"></g>
+        <g id="g-coast"></g>
+        <g id="g-trib"></g>
+        <g id="g-riv"></g>
+        <g id="g-lab"></g>
+        <g id="g-pts"></g>
+      </svg>
+      <div class="loading" id="loading">RENDERING TERRAIN…</div>
+      <div class="hud tl" role="group" aria-label="Map layers">
+        <button class="chip c-riv" aria-pressed="true" data-layer="flow"><i></i>Flow</button>
+        <button class="chip c-hat" aria-pressed="true" data-layer="hat"><i></i>Hatcheries</button>
+        <button class="chip c-smp" aria-pressed="true" data-layer="smp"><i></i>Sampling</button>
+        <button class="chip c-rel" aria-pressed="true" data-layer="rel"><i></i>Releases</button>
+        <button class="chip c-lab" aria-pressed="true" data-layer="lab"><i></i>Labels</button>
+      </div>
+      <div class="hud tr">
+        <button class="zbtn" id="zin" aria-label="Zoom in">+</button>
+        <button class="zbtn" id="zout" aria-label="Zoom out">−</button>
+        <button class="zbtn" id="zreset" aria-label="Reset view" style="font-size:13px">⤢</button>
+      </div>
+      <div class="hud bl"><div class="scalebar" aria-hidden="true"><span id="sb-l">10 km</span><span class="bar" id="sb-b" style="width:90px"></span></div></div>
+      <div class="hud br"><div class="readout" id="readout">48.8000° N · 122.2000° W</div></div>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+    <aside class="insp" aria-live="polite">
+      <div class="insp-h" id="insp-h"></div>
+      <div class="insp-b" id="insp-b"></div>
+    </aside>
+  </div>
+</section>
+
+<!-- ================= TRACE ================= -->
+<section class="view" id="v-trace" hidden aria-label="Brood Trace">
+  <div class="tr-top">
+    <p id="tr-sum"></p>
+    <form class="tr-tools" id="tr-form" role="search">
+      <button type="button" class="ghost" id="tr-back" hidden>← Back</button>
+      <input id="tr-q" list="tr-list" placeholder="Fish ID, e.g. KC21-F0524" autocomplete="off" aria-label="Find a spawner or offspring by ID">
+      <datalist id="tr-list"></datalist>
+      <button class="ghost" type="submit">Trace</button>
+      <button class="ghost" type="button" id="tr-rand">Random spawner</button>
+      <p id="tr-msg" role="status"></p>
+    </form>
+  </div>
+  <div class="tr-grid">
+    <div class="bw-wrap"><div class="bw" id="bw">
+      <div class="sizer" id="sizer"><div class="board" id="board"></div></div></div>
+      <div class="zoomctl"><button id="z-out" aria-label="Zoom out">−</button><span id="z-v">100%</span><button id="z-in" aria-label="Zoom in">+</button><span class="sep"></span><button id="z-fit">Fit to screen</button></div>
+    </div>
+    <aside class="tr-side" id="tr-side" aria-live="polite"></aside>
+  </div>
+  <p class="note" style="margin-top:12px;font-size:12px;color:var(--muted)">Drag to move · <kbd>Ctrl</kbd>+scroll to zoom · <kbd>Esc</kbd> steps back · All fish, genotypes and detections are simulated demonstration data.</p>
+</section>
+
+<!-- ================= METHOD ================= -->
+<section class="view" id="v-method" hidden aria-label="How PBT works">
+  <div class="wrap-narrow">
+    <div class="lede">
+      <div>
+        <div class="eyebrow" style="margin-bottom:12px">Method</div>
+        <h1>Tag the parents.<br><em>Every offspring</em> is marked.</h1>
+      </div>
+      <p>Parentage-based tagging turns a hatchery's broodstock genotypes into a heritable tag. Genotype each spawned adult once, and any of their offspring sampled later — as a smolt in a trap, a returning adult on the spawning grounds, or a fish caught in Bellingham Bay — can be traced back to its parents, its hatchery, its brood year and its release group from a tiny fin clip.</p>
+    </div>
+
+    <ol class="steps">
+      <li><h3>Sample broodstock</h3><p>Every adult spawned at the hatchery (e.g., Kendall Creek or Skookum Creek) gives a small fin-clip tissue sample, and spawning crosses are recorded.</p></li>
+      <li><h3>Genotype parents</h3><p>DNA is genotyped at a fixed <button class="t" data-t="panel">SNP panel</button> of a few hundred loci, often by <button class="t" data-t="gtseq">GT-seq</button>. The parent genotypes become the tag database.</p></li>
+      <li><h3>Release offspring</h3><p>Juveniles are released on-station or from <button class="t" data-t="acclimation">acclimation sites</button>. No physical tag is needed — the whole cohort carries the mark in its DNA.</p></li>
+      <li><h3>Sample in the field</h3><p>Fin clips are collected from smolt traps, spawning-ground carcass surveys, broodstock returns and fisheries across the basin.</p></li>
+      <li><h3>Assign parentage</h3><p>Each unknown fish is compared with every candidate parent pair. A true <button class="t" data-t="trio">trio</button> shows no <button class="t" data-t="mendel">Mendelian incompatibilities</button> beyond genotyping error.</p></li>
+      <li><h3>Read the tag</h3><p>An assignment reveals origin, brood year, age and release group. Fish that assign to no parent pair are presumed natural-origin (or from an untagged source).</p></li>
+    </ol>
+
+    <div class="lab" id="lab">
+      <div class="lab-h">
+        <div>
+          <div class="eyebrow">Interactive · simulated genotypes</div>
+          <h2>Parentage match lab</h2>
+          <p>An offspring inherits one allele per locus from each parent. Test a candidate pair below: cells outlined in coral are loci where the offspring carries an allele the candidates could not have passed on.</p>
+        </div>
+        <div class="lab-ctl">
+          <div class="seg" role="group" aria-label="Candidate pair">
+            <button aria-pressed="true" data-cand="true">True parents</button>
+            <button aria-pressed="false" data-cand="decoy">Unrelated female</button>
+          </div>
+          <button class="ghost" id="err-btn" aria-pressed="false">Add genotyping error</button>
+          <button class="ghost" id="reroll">New fish</button>
+        </div>
+      </div>
+      <div class="geno-scroll"><div class="geno" id="geno"></div></div>
+      <div class="verdict" id="verdict"></div>
+      <div class="legend"><span><i style="background:#1FA3B2"></i>AA (homozygous)</span><span><i style="background:#E9B44C"></i>AB (heterozygous)</span><span><i style="background:#DCEEF2"></i>BB (homozygous)</span><span><i style="background:#FF8A66"></i>Incompatible locus</span></div>
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <h3>Why PBT on the Nooksack</h3>
+        <ul>
+          <li>The basin holds two <button class="t" data-t="earlych">early Chinook</button> populations — North/Middle Fork and South Fork — within the ESA-listed <button class="t" data-t="esu">Puget Sound Chinook ESU</button>.</li>
+          <li>Recovery hatchery fish are often left unclipped, so an <button class="t" data-t="adclip">adipose clip</button> can't separate them from natural fish. PBT can.</li>
+          <li>Knowing <button class="t" data-t="phos">pHOS</button> and <button class="t" data-t="stray">straying</button> between forks guides broodstock and release decisions.</li>
+          <li>Terminal and <button class="t" data-t="mixedstock">mixed-stock fisheries</button> in Bellingham Bay can be apportioned by program and brood year.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>PBT vs. other marks</h3>
+        <div style="overflow-x:auto">
+        <table class="cmp">
+          <thead><tr><th></th><th>PBT</th><th>CWT</th><th>GSI</th></tr></thead>
+          <tbody>
+            <tr><td>Marks</td><td>Whole cohort</td><td>Tagged subset</td><td>No mark</td></tr>
+            <tr><td>Resolution</td><td>Parent pair</td><td>Tag code</td><td>Population</td></tr>
+            <tr><td>Sample</td><td>Fin clip, non-lethal</td><td>Head (lethal)</td><td>Fin clip</td></tr>
+            <tr><td>Natural fish</td><td>Not assigned</td><td>Not tagged</td><td>Assigned</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= GLOSSARY ================= -->
+<section class="view" id="v-glossary" hidden aria-label="Glossary">
+  <div class="gl-top">
+    <h1>Terms &amp; definitions</h1>
+    <label class="search" for="gl-q">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="#8FAEB6" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="#8FAEB6" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <input id="gl-q" type="search" placeholder="Search terms — e.g. pHOS, trio, smolt" autocomplete="off" aria-label="Search glossary">
+    </label>
+  </div>
+  <div class="cats" id="gl-cats" role="group" aria-label="Filter by category"></div>
+  <div class="gl-grid" id="gl-grid"></div>
+  <p class="empty" id="gl-empty" hidden>No terms match that search. Try a shorter word or clear the category filter.</p>
+</section>
+
+<!-- ================= TERMS ================= -->
+<section class="view" id="v-terms" hidden aria-label="Terms and conditions">
+  <article class="terms">
+    <div class="eyebrow">Legal</div>
+    <h1>Terms &amp; Conditions of Use</h1>
+    <p class="meta">Effective September 22, 2026 · Brood Trace 2.0</p>
+
+    <h2>1. Permitted use</h2>
+    <p>This application is provided solely for <strong>educational and professional use</strong> — for example classroom instruction, training, outreach, scientific discussion, and professional reference in fisheries, natural-resource and related fields. Any other use, including commercial resale or redistribution of the application or its content, is not permitted without written permission from the creator.</p>
+
+    <h2>2. Nature of the content</h2>
+    <ul>
+      <li>River courses, shorelines, place and facility locations are traced by hand and are <strong>approximate</strong>. The terrain is a generated shaded-relief model for context, not survey-grade elevation data.</li>
+      <li>Sampling sites, release sites, fish records, parent IDs, assignment results and composition percentages are <strong>simulated demonstration data</strong>. They are not real survey, hatchery or fishery results and must not be cited as such.</li>
+      <li>Descriptions of stocks, programs and facilities are summaries for learning purposes and may be incomplete or out of date.</li>
+    </ul>
+
+    <h2>3. Not for operational, regulatory or navigational decisions</h2>
+    <p>Do not use this application for navigation, fishing, regulatory compliance, permitting, harvest management, stock assessment, legal proceedings or any decision where accuracy is critical. Consult official sources — including the Washington Department of Fish and Wildlife, the Lummi Nation, the Nooksack Indian Tribe and NOAA Fisheries — for authoritative data.</p>
+
+    <h2>4. Respect for co-managers and Tribal resources</h2>
+    <p>Nooksack salmon are co-managed by the State of Washington and treaty Tribes. Nothing in this application represents the views, data or policies of any agency or Tribe, and no endorsement is implied. Treat culturally and ecologically sensitive information with respect.</p>
+
+    <h2>5. No warranty</h2>
+    <p>The application is provided "as is" and "as available", without warranties of any kind, express or implied, including accuracy, completeness, fitness for a particular purpose or non-infringement.</p>
+
+    <h2>6. Limitation of liability</h2>
+    <p>To the fullest extent permitted by law, the creator shall not be liable for any direct, indirect, incidental, consequential or other damages arising from the use of, or inability to use, this application or its content.</p>
+
+    <h2>7. Attribution</h2>
+    <p>When referencing this application in teaching or professional materials, credit: <em>"Brood Trace 2.0 — Created by Michael Stocklin."</em> Do not remove or alter the creator credit.</p>
+
+    <h2>8. Privacy</h2>
+    <p>The application does not ask for or transmit personal information. Your acceptance of these terms is remembered only in your own browser, where storage is available.</p>
+
+    <h2>9. Changes</h2>
+    <p>These terms may be updated at any time. Continued use after an update constitutes acceptance of the revised terms.</p>
+
+    <p style="margin-top:26px"><button class="ghost" id="reshow-gate">Review acceptance</button></p>
+  </article>
+</section>
+</main>
+
+<footer>
+  <span class="by">Created by Michael Stocklin</span>
+  <span>For educational and professional use only · Locations approximate · Demo data simulated · <button data-go="terms">Terms &amp; Conditions</button></span>
+</footer>
+
+<div class="pop" id="pop" hidden role="dialog" aria-live="polite"></div>
+
+<div class="gate" id="gate" hidden role="dialog" aria-modal="true" aria-labelledby="gate-t">
+  <div class="gate-card">
+    <div class="eyebrow">Before you continue</div>
+    <h2 id="gate-t">Terms &amp; Conditions</h2>
+    <p>The Brood Trace 2.0 is for <strong>educational and professional use only</strong>.</p>
+    <ul>
+      <li>Map features are approximate; terrain is a generated relief model.</li>
+      <li>Sampling results, fish records and percentages are simulated for demonstration.</li>
+      <li>Not for navigation, regulatory, harvest or legal decisions.</li>
+      <li>Provided as-is with no warranty. Credit the creator when referencing it.</li>
+    </ul>
+    <label class="check" for="gate-ck"><input type="checkbox" id="gate-ck"><span>I have read the Terms &amp; Conditions and will use this application for educational or professional purposes only.</span></label>
+    <div class="gate-act">
+      <button class="ghost" id="gate-read">Read full terms</button>
+      <button class="btn" id="gate-ok" disabled>Accept &amp; enter</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(()=>{
+"use strict";
+/* ============ projection ============ */
+const LON0=-122.85, LAT0=49.02, K=Math.cos(48.8*Math.PI/180)*1000, W=856, H=440, KM=0.1112;
+const P=(lat,lon)=>[(lon-LON0)*K,(LAT0-lat)*1000];
+const unP=(x,y)=>[LAT0-y/1000, LON0+x/K];
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const NS="http://www.w3.org/2000/svg";
+const el=(t,a={},p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+/* ============ geography (lat, lon; upstream → downstream) ============ */
+const REACHES={
+  nf:{name:"North Fork",color:"var(--nf)",hex:"#86AEFF",w:2.4,seed:11,pts:[[48.815,-121.615],[48.835,-121.64],[48.86,-121.66],[48.884,-121.676],[48.903,-121.70],[48.908,-121.74],[48.906,-121.78],[48.905,-121.81],[48.90,-121.85],[48.893,-121.90],[48.888,-121.945],[48.892,-121.99],[48.903,-122.03],[48.914,-122.07],[48.916,-122.10],[48.909,-122.13],[48.893,-122.15],[48.87,-122.162],[48.85,-122.166],[48.834,-122.158],[48.827,-122.188],[48.8225,-122.215]]},
+  mf:{name:"Middle Fork",color:"var(--mf)",hex:"#F2C46D",w:2.1,seed:23,pts:[[48.766,-121.855],[48.764,-121.89],[48.771,-121.93],[48.772,-121.97],[48.775,-122.01],[48.779,-122.05],[48.786,-122.085],[48.797,-122.108],[48.806,-122.12],[48.82,-122.14],[48.834,-122.158]]},
+  sf:{name:"South Fork",color:"var(--sf)",hex:"#CFA2FF",w:2.3,seed:37,pts:[[48.612,-121.875],[48.625,-121.91],[48.637,-121.95],[48.645,-121.99],[48.652,-122.035],[48.662,-122.08],[48.674,-122.12],[48.685,-122.152],[48.70,-122.178],[48.718,-122.198],[48.742,-122.21],[48.765,-122.214],[48.788,-122.224],[48.808,-122.226],[48.8225,-122.215]]},
+  main:{name:"Mainstem",color:"var(--main)",hex:"#6FE3F2",w:3.4,seed:5,pts:[[48.8225,-122.215],[48.832,-122.236],[48.846,-122.26],[48.866,-122.285],[48.89,-122.31],[48.909,-122.328],[48.921,-122.345],[48.931,-122.372],[48.94,-122.40],[48.937,-122.43],[48.933,-122.46],[48.935,-122.49],[48.925,-122.52],[48.905,-122.545],[48.881,-122.568],[48.861,-122.584],[48.845,-122.592],[48.825,-122.599],[48.805,-122.601],[48.788,-122.598],[48.772,-122.600]]}
+};
+const TRIBS=[
+  [[48.80,-121.83],[48.83,-121.87],[48.86,-121.905],[48.888,-121.944]],        // Glacier Cr
+  [[48.845,-121.745],[48.87,-121.775],[48.905,-121.80]],                        // Wells Cr
+  [[48.965,-121.99],[48.94,-122.01],[48.905,-122.025]],                         // Canyon Cr
+  [[48.945,-122.128],[48.925,-122.132],[48.911,-122.134]],                      // Kendall Cr
+  [[48.735,-122.11],[48.726,-122.16],[48.72,-122.196]],                         // Hutchinson Cr
+  [[48.655,-122.10],[48.668,-122.13],[48.684,-122.15]],                         // Skookum Cr
+  [[49.02,-122.425],[48.99,-122.45],[48.962,-122.468],[48.934,-122.478]],       // Fishtrap Cr
+  [[49.02,-122.53],[48.985,-122.53],[48.955,-122.52],[48.928,-122.515]],        // Bertrand Cr
+  [[48.885,-122.43],[48.87,-122.49],[48.858,-122.545],[48.853,-122.588]],       // Tenmile Cr
+  [[48.745,-121.99],[48.765,-122.01],[48.776,-122.013]]                         // Clearwater Cr
+];
+const SEA=[[49.03,-122.87],[49.03,-122.765],[49.0,-122.758],[48.985,-122.745],[48.97,-122.762],[48.945,-122.775],[48.925,-122.765],[48.905,-122.785],[48.89,-122.80],[48.873,-122.78],[48.86,-122.76],[48.84,-122.745],[48.815,-122.725],[48.80,-122.712],[48.795,-122.69],[48.80,-122.665],[48.802,-122.645],[48.795,-122.628],[48.78,-122.63],[48.76,-122.638],[48.74,-122.642],[48.72,-122.635],[48.704,-122.622],[48.712,-122.61],[48.735,-122.606],[48.755,-122.604],[48.77,-122.604],[48.776,-122.596],[48.782,-122.58],[48.785,-122.565],[48.778,-122.545],[48.768,-122.522],[48.76,-122.505],[48.752,-122.49],[48.742,-122.498],[48.73,-122.51],[48.718,-122.512],[48.705,-122.506],[48.69,-122.502],[48.67,-122.494],[48.65,-122.484],[48.63,-122.47],[48.61,-122.452],[48.59,-122.45],[48.57,-122.46],[48.57,-122.87]];
+const ISLAND=[[48.765,-122.705],[48.752,-122.69],[48.73,-122.672],[48.705,-122.65],[48.68,-122.632],[48.655,-122.618],[48.64,-122.61],[48.632,-122.62],[48.648,-122.635],[48.672,-122.652],[48.70,-122.678],[48.728,-122.703],[48.75,-122.722],[48.765,-122.72]];
+const LAKE=[[48.778,-122.43],[48.768,-122.40],[48.745,-122.375],[48.722,-122.345],[48.70,-122.315],[48.68,-122.292],[48.662,-122.272],[48.655,-122.277],[48.67,-122.302],[48.692,-122.33],[48.714,-122.357],[48.737,-122.388],[48.756,-122.418],[48.77,-122.44]];
+const TOWNS=[["Bellingham",48.754,-122.479,1],["Ferndale",48.847,-122.592,1],["Lynden",48.946,-122.452,1],["Everson",48.920,-122.343,0],["Sumas",48.999,-122.265,0],["Deming",48.822,-122.217,0],["Acme",48.718,-122.205,0],["Glacier",48.888,-121.944,0],["Maple Falls",48.926,-122.079,0],["Blaine",48.994,-122.747,0]];
+const PEAKS=[["Mt. Baker",48.7768,-121.8144,"3,286 m"],["Mt. Shuksan",48.8309,-121.6029,"2,783 m"],["Twin Sisters",48.713,-121.989,"2,129 m"]];
+
+/* ============ point features ============ */
+const SITES=[
+  {id:"kc",layer:"hat",kind:"Hatchery",name:"Kendall Creek Hatchery",lat:48.9146,lon:-122.1445,op:"WDFW",reach:"nf",
+   desc:"State hatchery on the North Fork near Kendall. Operates the North/Middle Fork early (spring) Chinook program, an integrated recovery program for the native NF/MF population.",
+   prog:"NF/MF early Chinook", pbt:"All spawned broodstock are fin-clipped and genotyped; each cross is recorded so offspring can be assigned to a parent pair."},
+  {id:"sk",layer:"hat",kind:"Hatchery",name:"Skookum Creek Hatchery",lat:48.6835,lon:-122.1465,op:"Lummi Nation",reach:"sf",
+   desc:"Lummi Nation hatchery at the mouth of Skookum Creek on the South Fork. Runs a South Fork early Chinook recovery program for one of the smallest, most genetically distinct Chinook populations in Puget Sound.",
+   prog:"SF early Chinook", pbt:"Broodstock genotyping supports both parentage assignment and confirming that broodstock are true South Fork early-lineage fish before spawning."},
+  {id:"lb",layer:"hat",kind:"Hatchery",name:"Lummi Bay Hatchery",lat:48.803,lon:-122.648,op:"Lummi Nation",reach:"main",
+   desc:"Lummi Nation marine sea-pond facility on Lummi Bay, near the Nooksack delta.",
+   prog:"Marine rearing (coho, Chinook)", pbt:"Shown for context; not part of the simulated assignment set."},
+  {id:"s1",layer:"smp",kind:"Spawning-ground survey",name:"Upper North Fork survey",lat:48.892,lon:-121.985,reach:"nf",n:40,
+   desc:"Carcass and redd surveys on the North Fork near Glacier. Tissue from each carcass is genotyped and run against the Kendall Creek parent database.",
+   mix:{kc:.52,sk:.02,fh:0,nat:.41,unr:.05}},
+  {id:"s2",layer:"smp",kind:"Spawning-ground survey",name:"Middle Fork survey",lat:48.776,lon:-122.03,reach:"mf",n:40,
+   desc:"Surveys above the former City of Bellingham diversion dam, where fish passage was restored. PBT shows how quickly hatchery and natural fish recolonise the reopened habitat.",
+   mix:{kc:.33,sk:0,fh:0,nat:.62,unr:.05}},
+  {id:"s3",layer:"smp",kind:"Spawning-ground survey",name:"South Fork survey",lat:48.70,lon:-122.18,reach:"sf",n:40,
+   desc:"Surveys between Saxon and Acme. Separating South Fork early fish from North Fork strays and fall Chinook is critical for this small population.",
+   mix:{kc:.07,sk:.28,fh:.06,nat:.54,unr:.05}},
+  {id:"s4",layer:"smp",kind:"Juvenile trap",name:"Lower mainstem juvenile trap",lat:48.936,lon:-122.418,reach:"main",n:40,
+   desc:"Rotary screw trap sampling out-migrating juveniles below the forks. PBT separates hatchery releases from natural production without handling-heavy physical tags.",
+   mix:{kc:.46,sk:.14,fh:0,nat:.35,unr:.05}},
+  {id:"s5",layer:"smp",kind:"Fishery sampling",name:"Bellingham Bay fishery",lat:48.742,lon:-122.565,reach:"main",n:40,
+   desc:"Terminal-area catch sampling. Assigned fish are apportioned by program and brood year; fall Chinook are resolved with GSI because their parents are not in this demo's PBT database.",
+   mix:{kc:.28,sk:.07,fh:.36,nat:.24,unr:.05}},
+  {id:"r1",layer:"rel",kind:"Release site",name:"Kendall Creek on-station release",lat:48.906,lon:-122.128,reach:"nf",
+   desc:"Juveniles released directly from the hatchery into the North Fork.", code:"KC-ONS"},
+  {id:"r2",layer:"rel",kind:"Release site",name:"Upper North Fork acclimation",lat:48.899,lon:-121.875,reach:"nf",
+   desc:"Example upriver acclimation site used to spread returns into upper North Fork spawning habitat.", code:"KC-UNF"},
+  {id:"r3",layer:"rel",kind:"Release site",name:"Middle Fork acclimation",lat:48.772,lon:-121.955,reach:"mf",
+   desc:"Example acclimation site supporting recolonisation of the Middle Fork above the former diversion.", code:"KC-MF"},
+  {id:"r4",layer:"rel",kind:"Release site",name:"Skookum Creek on-station release",lat:48.678,lon:-122.132,reach:"sf",
+   desc:"South Fork early Chinook juveniles released at the hatchery.", code:"SK-ONS"},
+  {id:"dd",layer:"hat",kind:"Landmark",name:"Middle Fork diversion (former dam)",lat:48.806,lon:-122.12,reach:"mf",
+   desc:"The City of Bellingham's water-supply diversion to Lake Whatcom. The dam blocked salmon for about a century; a fish-passage project completed in 2020 reopened roughly 16 miles of upstream habitat."}
+];
+
+const REACH_INFO={
+  main:{from:"NF/SF confluence near Deming",to:"Bellingham Bay (Nooksack delta)",pass:"Everson · Lynden · Ferndale · Lummi Nation",
+    stocks:["Migration corridor for all Nooksack stocks","Fall Chinook (largely hatchery-origin)","Coho, chum, pink, steelhead, bull trout"],
+    body:`The lowland mainstem is the <button class="t" data-t="mixedstock">mixed-stock</button> corridor every Nooksack fish passes through, which makes it the best place to sample <button class="t" data-t="smolt">smolts</button> and returning adults for basin-wide <button class="t" data-t="pbt">PBT</button> estimates. Lowland tributaries such as Fishtrap and Bertrand creeks rise across the border in British Columbia.`},
+  nf:{from:"Nooksack Cirque, below Mt. Shuksan",to:"Joins the South Fork near Deming",pass:"Nooksack Falls · Glacier · Maple Falls · Kendall · Welcome",
+    stocks:["NF/MF early (spring) Chinook — ESA-listed","Kendall Creek Hatchery recovery program","Coho, pink, chum, steelhead, bull trout"],
+    body:`The glacier-fed North Fork holds most of the <button class="t" data-t="earlych">early Chinook</button> spawning in the basin. <button class="t" data-t="broodstock">Broodstock</button> for the Kendall Creek program are genotyped every year, so their offspring are tagged by <button class="t" data-t="parentage">parentage</button> whether or not they carry an <button class="t" data-t="adclip">adipose clip</button>.`},
+  mf:{from:"Deming Glacier, Mt. Baker",to:"Joins the North Fork below Welcome",pass:"Former City of Bellingham diversion",
+    stocks:["Part of the NF/MF early Chinook population","Steelhead and bull trout recolonising upper reaches"],
+    body:`Silty meltwater from Mt. Baker's Deming Glacier. For about a century the City of Bellingham <button class="t" data-t="diversion">diversion dam</button> blocked the upper river; since passage was restored, PBT lets biologists tell hatchery-released recolonisers from <button class="t" data-t="nor">natural-origin</button> fish.`},
+  sf:{from:"Headwaters south of the Twin Sisters Range",to:"Joins the North Fork near Deming",pass:"Skookum Creek · Saxon · Acme · Van Zandt",
+    stocks:["SF early Chinook — genetically distinct, very low abundance","Skookum Creek Hatchery recovery program","Fall Chinook strays, coho, steelhead"],
+    body:`A rain-and-snow river with warm, low summer flows. Its early Chinook are a separate population from the North Fork's, so telling <button class="t" data-t="stray">strays</button> apart from true South Fork fish — with PBT for hatchery fish and <button class="t" data-t="gsi">GSI</button> for natural ones — is central to its recovery.`}
+};
+
+const CATS={kc:{label:"Kendall Creek (NF/MF early)",c:"var(--kc)"},sk:{label:"Skookum Creek (SF early)",c:"var(--sk)"},fh:{label:"Fall hatchery (GSI only)",c:"var(--fh)"},nat:{label:"No assignment · presumed natural",c:"var(--nat)"},unr:{label:"Unresolved (low-quality DNA)",c:"var(--unr)"}};
+
+/* ============ glossary ============ */
+const GLOSS=[
+ ["pbt","Parentage-Based Tagging (PBT)","Genetics","A genetic tag applied to an entire hatchery cohort by genotyping its parents. Any offspring sampled later can be assigned to its parent pair, revealing hatchery, brood year and release group without a physical mark."],
+ ["snp","SNP (single-nucleotide polymorphism)","Genetics","A single DNA base position that differs among individuals. SNPs are the standard PBT marker because they are cheap to genotype at scale and easy to standardise between labs."],
+ ["locus","Locus (pl. loci)","Genetics","A specific position in the genome that is genotyped. A PBT panel is a fixed list of loci typed in every fish."],
+ ["allele","Allele","Genetics","One of the alternative variants at a locus. Salmon are diploid, carrying two alleles at each locus — one inherited from each parent."],
+ ["genotype","Genotype","Genetics","The pair of alleles a fish carries at a locus (e.g., AA, AB, BB). Across a whole panel, the multi-locus genotype acts like a fingerprint."],
+ ["panel","SNP panel","Genetics","The standard set of loci genotyped for every fish in a program. Chinook PBT panels typically contain a few hundred SNPs, enough to keep false assignments extremely rare."],
+ ["gtseq","GT-seq","Genetics","Genotyping-in-Thousands by sequencing: an amplicon-sequencing method that genotypes hundreds of SNPs in thousands of fish in a single sequencing run. Widely used for Pacific salmon PBT."],
+ ["parentage","Parentage assignment","Genetics","The statistical matching of an offspring's genotype to candidate parents in the broodstock database, usually scored with a likelihood (LOD) and a mismatch threshold."],
+ ["trio","Trio","Genetics","An offspring together with its assigned mother and father. Trio assignments are far more powerful than single-parent assignments because both parents must explain every locus."],
+ ["mendel","Mendelian incompatibility","Genetics","A locus where the offspring carries an allele that neither candidate parent could have transmitted. True trios show zero, or only error-level, incompatibilities."],
+ ["lod","LOD score","Genetics","Log-of-odds score comparing the likelihood that candidates are the true parents with the likelihood they are unrelated. Higher scores mean stronger support."],
+ ["far","False assignment rate","Genetics","The expected proportion of fish assigned to the wrong parents. It is driven down by adding informative loci and requiring trio (both-parent) matches."],
+ ["gerr","Genotyping error","Genetics","An incorrect allele call caused by low DNA quality or lab artefacts. Assignment software allows a small number of mismatches so true parents are not rejected."],
+ ["tagrate","Tagging rate","Genetics","The proportion of spawned broodstock that were successfully sampled and genotyped. If both parents of a cross are genotyped, all of that cross's offspring are tagged."],
+ ["gsi","Genetic Stock Identification (GSI)","Genetics","Assigns a fish to a population of origin using reference allele frequencies. Coarser than PBT, but it works on natural-origin fish that PBT cannot tag."],
+ ["baseline","Genetic baseline","Genetics","A reference collection of genotypes representing each candidate population, used by GSI to estimate origin."],
+ ["broodstock","Broodstock","Hatchery","Adult fish collected and spawned at a hatchery to produce the next generation. In PBT, every broodstock fish is sampled and genotyped."],
+ ["by","Brood year","Hatchery","The year the parents spawned. All offspring of one spawning season share a brood year; PBT reads it directly from the parent record."],
+ ["ry","Return year","Life history","The year an adult returns to freshwater. Age = return year − brood year."],
+ ["cwt","Coded-wire tag (CWT)","Hatchery","A tiny magnetised wire with a numeric code injected into a juvenile's snout. It marks only the tagged subset and is recovered by removing the head."],
+ ["adclip","Adipose fin clip","Hatchery","Removal of the small fleshy adipose fin as a visual hatchery mark. Recovery-program fish are often left unclipped to protect them in fisheries, so a clip alone cannot identify them."],
+ ["hor","Hatchery-origin (HOR)","Management","A fish produced in a hatchery, regardless of where it is later found."],
+ ["nor","Natural-origin (NOR)","Management","A fish produced by spawning in the wild, regardless of its parents' origin."],
+ ["phos","pHOS","Management","Proportion of hatchery-origin spawners on the natural spawning grounds — a key indicator that PBT estimates directly from carcass samples."],
+ ["pnob","pNOB","Management","Proportion of natural-origin fish in hatchery broodstock."],
+ ["pni","PNI","Management","Proportionate natural influence, approximately pNOB ÷ (pNOB + pHOS). Values above 0.5 mean the natural environment, not the hatchery, drives adaptation."],
+ ["integrated","Integrated program","Hatchery","A hatchery program managed so hatchery and natural fish function as one population, with natural-origin adults regularly included in broodstock."],
+ ["esu","Evolutionarily Significant Unit (ESU)","Management","A distinct population group of Pacific salmon treated as a 'species' under the U.S. Endangered Species Act. Nooksack early Chinook are part of the Puget Sound Chinook ESU, listed as Threatened in 1999."],
+ ["earlych","Early (spring) Chinook","Life history","Chinook that enter fresh water in spring and early summer and hold before spawning. The Nooksack has two native early populations: North/Middle Fork and South Fork."],
+ ["fallch","Fall Chinook","Life history","Later-returning Chinook. In the Nooksack they are largely hatchery-origin fish of non-local ancestry, which complicates identification of native early fish."],
+ ["smolt","Smolt","Life history","A juvenile salmon undergoing the physiological change to saltwater and migrating downstream to the sea."],
+ ["fry","Fry","Life history","A juvenile salmon that has recently emerged from the gravel and begun feeding."],
+ ["redd","Redd","Field","A gravel nest dug by a spawning female. Redd counts are a standard index of spawner abundance."],
+ ["escapement","Escapement","Management","The number of adults that escape fisheries and return to spawn."],
+ ["carcass","Carcass survey","Field","Spawning-ground survey in which dead spawners are counted and sampled for tissue, scales and other data. The primary source of PBT samples on the spawning grounds."],
+ ["screwtrap","Rotary screw trap","Field","A floating, cone-shaped trap that samples juveniles migrating downstream. Fin clips from trap catches estimate hatchery versus natural production."],
+ ["tissue","Fin-clip tissue sample","Field","A small piece of fin, dried on paper or stored in ethanol, used for DNA extraction. Non-lethal and quick to collect."],
+ ["mixedstock","Mixed-stock fishery","Management","A fishery that intercepts fish from several populations at once. PBT and GSI apportion the catch among stocks and programs."],
+ ["stray","Stray","Life history","A fish that returns to spawn somewhere other than its natal or release site. PBT measures straying precisely because it knows where each hatchery fish was released."],
+ ["acclimation","Acclimation site","Hatchery","A pond or net pen where juveniles are held before release so they imprint on local water and return there as adults."],
+ ["diversion","Middle Fork diversion","Nooksack","The City of Bellingham's water-supply dam on the Middle Fork, which diverted water to Lake Whatcom and blocked upstream fish passage for about a century. A fish-passage project completed in 2020 reopened upstream habitat."],
+ ["kendall","Kendall Creek Hatchery","Nooksack","A Washington Department of Fish and Wildlife hatchery on the North Fork near Kendall that operates the NF/MF early Chinook program."],
+ ["skookum","Skookum Creek Hatchery","Nooksack","A Lummi Nation hatchery on the South Fork that operates South Fork early Chinook recovery and coho programs."],
+ ["wria1","WRIA 1","Nooksack","Water Resource Inventory Area 1, Washington State's planning unit for the Nooksack basin and adjacent coastal drainages in Whatcom County."],
+ ["marker","Genetic marker","Genetics","A known, genotyped position in the genome — here a SNP. Brood Trace shows each fish's 96 markers as a barcode: one bar per marker, coloured by genotype (AA, AB or BB)."],
+ ["het","Observed heterozygosity","Genetics","The share of a fish's read markers where it carries two different alleles (AB). A quick DNA-quality check: values far from the population's usual range can flag a contaminated or failed sample."],
+ ["callrate","Markers read (call rate)","Genetics","How many of the panel's markers returned a confident genotype. Samples with too few markers read are left unresolved rather than risk a wrong assignment."],
+ ["comanage","Co-management","Nooksack","Shared management of salmon by the State of Washington and treaty Tribes — here the Lummi Nation and Nooksack Indian Tribe — under the Boldt decision (1974)."]
+];
+const GMAP=Object.fromEntries(GLOSS.map(g=>[g[0],g]));
+
+/* ============ build SVG ============ */
+const svg=$("#map");
+const polyD=(arr,close)=>arr.map((p,i)=>{const[x,y]=P(p[0],p[1]);return(i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1)}).join("")+(close?"Z":"");
+function meander(pts,seed,amp){
+  const r=rng(seed),xy=pts.map(p=>P(p[0],p[1])),out=[xy[0]];
+  for(let i=0;i<xy.length-1;i++){
+    const a=xy[i],b=xy[i+1],dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy),nx=-dy/L,ny=dx/L;
+    const n=Math.max(1,Math.round(L/7));
+    for(let k=1;k<=n;k++){const t=k/(n+1),o=(r()-.5)*amp*Math.min(L,10)*.16;out.push([a[0]+dx*t+nx*o,a[1]+dy*t+ny*o])}
+    out.push(b);
+  }
+  return out;
+}
+function smoothD(xy){
+  let d=`M${xy[0][0].toFixed(1)} ${xy[0][1].toFixed(1)}`;
+  for(let i=0;i<xy.length-1;i++){
+    const p0=xy[i-1]||xy[i],p1=xy[i],p2=xy[i+1],p3=xy[i+2]||p2;
+    const c1=[p1[0]+(p2[0]-p0[0])/6,p1[1]+(p2[1]-p0[1])/6],c2=[p2[0]-(p3[0]-p1[0])/6,p2[1]-(p3[1]-p1[1])/6];
+    d+=`C${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${c2[0].toFixed(1)} ${c2[1].toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+for(const k in REACHES){const R=REACHES[k];R.d=smoothD(meander(R.pts,R.seed,k==="main"?1.3:.9));}
+const TRIB_D=TRIBS.map((t,i)=>smoothD(meander(t,100+i,.8)));
+
+// graticule
+(()=>{const g=$("#g-grat");
+  for(let lat=48.6;lat<=49.01;lat+=0.1){const y=P(lat,0)[1];el("line",{x1:0,x2:W,y1:y,y2:y,class:"grat","vector-effect":"non-scaling-stroke"},g);}
+  for(let lon=-122.8;lon<=-121.59;lon+=0.2){const x=P(0,lon)[0];el("line",{x1:x,x2:x,y1:0,y2:H,class:"grat","vector-effect":"non-scaling-stroke"},g);}
+})();
+// coast, island, lake, border
+(()=>{const g=$("#g-coast");
+  el("path",{d:polyD(SEA,1),fill:"none",stroke:"#6FE3F2","stroke-opacity":.45,"stroke-width":1,"vector-effect":"non-scaling-stroke"},g);
+  el("path",{d:polyD(ISLAND,1),fill:"none",stroke:"#6FE3F2","stroke-opacity":.45,"stroke-width":1,"vector-effect":"non-scaling-stroke"},g);
+  el("path",{d:polyD(LAKE,1),fill:"none",stroke:"#6FE3F2","stroke-opacity":.5,"stroke-width":1,"vector-effect":"non-scaling-stroke"},g);
+  const by=P(49,0)[1];
+  el("line",{x1:P(0,-122.757)[0],x2:W,y1:by,y2:by,stroke:"#E4DCC6","stroke-opacity":.5,"stroke-dasharray":"6 4 1.5 4","stroke-width":1,"vector-effect":"non-scaling-stroke"},g);
+})();
+// tribs
+(()=>{const g=$("#g-trib");TRIB_D.forEach(d=>el("path",{d,class:"trib","stroke-width":1,"vector-effect":"non-scaling-stroke"},g));})();
+// reaches
+const reachEls={};
+(()=>{const g=$("#g-riv");
+  ["sf","mf","nf","main"].forEach(k=>{const R=REACHES[k],rg=el("g",{class:"reach","data-reach":k},g);
+    el("path",{d:R.d,class:"riv riv-halo",stroke:R.hex,"stroke-width":R.w*4.5,"vector-effect":"non-scaling-stroke"},rg);
+    el("path",{d:R.d,class:"riv riv-core",stroke:R.hex,"stroke-width":R.w,"vector-effect":"non-scaling-stroke"},rg);
+    el("path",{d:R.d,class:"riv riv-flow",stroke:"#F4FDFF","stroke-width":Math.max(1,R.w-.8),"vector-effect":"non-scaling-stroke"},rg);
+    const hit=el("path",{d:R.d,class:"hit","stroke-width":18,"vector-effect":"non-scaling-stroke",tabindex:0,role:"button","aria-label":R.name},rg);
+    hit.addEventListener("click",e=>{e.stopPropagation();select({type:"reach",id:k})});
+    hit.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();select({type:"reach",id:k})}});
+    hit.addEventListener("pointerenter",()=>showTip(R.name,"River reach · click for details"));
+    hit.addEventListener("pointerleave",hideTip);
+    reachEls[k]=rg;
+  });
+})();
+// scalable point features
+const PTS=[];
+function addPt(g,lat,lon,build,opts={}){const[x,y]=P(lat,lon),n=el("g",{class:"pt "+(opts.cls||""),"data-x":x,"data-y":y},g);build(n);PTS.push(n);return n}
+(()=>{const lab=$("#g-lab");
+  // water labels
+  [["BELLINGHAM BAY",48.715,-122.565],["LUMMI BAY",48.775,-122.705],["STRAIT OF GEORGIA",48.935,-122.83],["LAKE WHATCOM",48.715,-122.33]].forEach(([t,la,lo])=>
+    addPt(lab,la,lo,n=>{const tx=el("text",{class:"lbl lbl-water","text-anchor":"middle"},n);tx.textContent=t;if(t==="LAKE WHATCOM")n.dataset.rot=-33},{cls:"nolink"}));
+  // country labels
+  [["BRITISH COLUMBIA",49.012,-122.12],["WASHINGTON",48.99,-122.12]].forEach(([t,la,lo])=>addPt(lab,la,lo,n=>{const tx=el("text",{class:"lbl lbl-water","text-anchor":"middle",style:"font-size:9px;fill:#9E9A8C"},n);tx.textContent=t},{cls:"nolink"}));
+  TOWNS.forEach(([t,la,lo,big])=>addPt(lab,la,lo,n=>{
+    el("rect",{x:-2.5,y:-2.5,width:5,height:5,fill:"#DCEEF2",transform:"rotate(45)"},n);
+    const tx=el("text",{class:"lbl lbl-town",x:6,y:3.5,style:big?"font-size:12px":""},n);tx.textContent=t},{cls:"nolink"}));
+  PEAKS.forEach(([t,la,lo,h])=>addPt(lab,la,lo,n=>{
+    el("path",{d:"M0 -6 L5.5 4 L-5.5 4Z",fill:"#E8F3F6",stroke:"#061219","stroke-width":1},n);
+    const ea=lo>-121.7,tx=el("text",{class:"lbl lbl-peak",x:ea?-8:8,y:0,"text-anchor":ea?"end":"start"},n);tx.textContent=t;
+    const t2=el("text",{class:"lbl",x:ea?-8:8,"text-anchor":ea?"end":"start",y:11,style:"font:500 8.5px JetBrains Mono,monospace;fill:#8FAEB6"},n);t2.textContent=h},{cls:"nolink"}));
+  // reach labels
+  [["main","NOOKSACK · MAINSTEM",48.905,-122.46],["nf","NORTH FORK",48.925,-121.86],["mf","MIDDLE FORK",48.758,-122.0],["sf","SOUTH FORK",48.64,-122.07]].forEach(([k,t,la,lo])=>
+    addPt(lab,la,lo,n=>{const tx=el("text",{class:"lbl lbl-reach","text-anchor":"middle",fill:REACHES[k].hex},n);tx.textContent=t;
+      n.style.cursor="pointer";n.addEventListener("click",e=>{e.stopPropagation();select({type:"reach",id:k})})}));
+  const pg=$("#g-pts");
+  SITES.forEach(s=>{
+    const n=addPt(pg,s.lat,s.lon,n=>{
+      n.setAttribute("tabindex","0");n.setAttribute("role","button");n.setAttribute("aria-label",s.name);
+      n.dataset.layer=s.layer;n.dataset.id=s.id;
+      el("circle",{r:14,fill:"transparent"},n);
+      if(s.layer==="hat"&&s.kind==="Hatchery"){
+        el("circle",{r:11,fill:"url(#pulse)"},n);
+        el("rect",{x:-5.5,y:-5.5,width:11,height:11,rx:2,fill:"#FF8A66",stroke:"#1A0C07","stroke-width":1.2},n);
+        el("rect",{class:"ring",x:-8.5,y:-8.5,width:17,height:17,rx:4,stroke:"#FF8A66","stroke-opacity":.6},n);
+      }else if(s.kind==="Landmark"){
+        el("path",{d:"M-6 -2h12v4h-12z",fill:"#F2C46D",stroke:"#1A0C07","stroke-width":1},n);
+        el("circle",{class:"ring",r:9,stroke:"#F2C46D","stroke-opacity":.6},n);
+      }else if(s.layer==="smp"){
+        el("circle",{r:5,fill:"#62D69E",stroke:"#061219","stroke-width":1.4},n);
+        el("circle",{class:"ring",r:9,stroke:"#62D69E","stroke-opacity":.7,"stroke-dasharray":"3 2.5"},n);
+      }else{
+        el("path",{d:"M0 -6 L6 0 L0 6 L-6 0Z",fill:"#E4DCC6",stroke:"#061219","stroke-width":1.2},n);
+        el("circle",{class:"ring",r:9.5,stroke:"#E4DCC6","stroke-opacity":.5},n);
+      }
+    });
+    n.addEventListener("click",e=>{e.stopPropagation();select({type:"site",id:s.id})});
+    n.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();select({type:"site",id:s.id})}});
+    n.addEventListener("pointerenter",()=>showTip(s.name,s.kind+(s.op?" · "+s.op:"")));
+    n.addEventListener("pointerleave",hideTip);
+  });
+})();
+
+/* ============ terrain (worker) ============ */
+const SC=1.6, CW=Math.round(W*SC), CH=Math.round(H*SC);
+function buildMask(){
+  const c=document.createElement("canvas");c.width=CW;c.height=CH;const x=c.getContext("2d");
+  x.scale(SC,SC);x.fillStyle="rgb(255,0,0)";
+  [SEA,ISLAND].forEach((a,i)=>{const p=new Path2D(polyD(a,1));x.fill(p,i?"nonzero":"nonzero")});
+  x.globalCompositeOperation="destination-out";x.fill(new Path2D(polyD(ISLAND,1)));
+  x.globalCompositeOperation="lighter";x.fill(new Path2D(polyD(LAKE,1)));
+  x.strokeStyle="rgb(0,255,0)";x.lineCap="round";x.lineJoin="round";
+  for(const k in REACHES){x.lineWidth=k==="main"?7:3;x.stroke(new Path2D(REACHES[k].d))}
+  x.lineWidth=1.2;TRIB_D.forEach(d=>x.stroke(new Path2D(d)));
+  const id=x.getImageData(0,0,CW,CH).data,wat=new Uint8Array(CW*CH),riv=new Uint8Array(CW*CH);
+  for(let i=0,j=0;i<wat.length;i++,j+=4){wat[i]=id[j]>127?1:0;riv[i]=id[j+1]>90?1:0}
+  return{wat,riv};
+}
+function terrainJob(msg){
+  const{CW,CH,SC,LON0,LAT0,K,wat,riv,peaks,KM}=msg;
+  const N=CW*CH,kmpx=KM/SC;
+  // distance transform (chamfer)
+  const D=new Float32Array(N);for(let i=0;i<N;i++)D[i]=riv[i]?0:1e6;
+  const S2=1.4142;
+  for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){const i=y*CW+x;let d=D[i];
+    if(x>0)d=Math.min(d,D[i-1]+1);if(y>0){d=Math.min(d,D[i-CW]+1);if(x>0)d=Math.min(d,D[i-CW-1]+S2);if(x<CW-1)d=Math.min(d,D[i-CW+1]+S2)}D[i]=d}
+  for(let y=CH-1;y>=0;y--)for(let x=CW-1;x>=0;x--){const i=y*CW+x;let d=D[i];
+    if(x<CW-1)d=Math.min(d,D[i+1]+1);if(y<CH-1){d=Math.min(d,D[i+CW]+1);if(x<CW-1)d=Math.min(d,D[i+CW+1]+S2);if(x>0)d=Math.min(d,D[i+CW-1]+S2)}D[i]=d}
+  // value noise
+  const perm=new Uint8Array(512);{let s=1337;for(let i=0;i<256;i++)perm[i]=i;for(let i=255;i>0;i--){s=(s*16807)%2147483647;const j=s%(i+1);const t=perm[i];perm[i]=perm[j];perm[j]=t}for(let i=0;i<256;i++)perm[i+256]=perm[i]}
+  const hv=(x,y)=>perm[(perm[x&255]+y)&255+0]/255;
+  const vn=(x,y)=>{const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
+    const a=hv(xi,yi),b=hv(xi+1,yi),c=hv(xi,yi+1),d=hv(xi+1,yi+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v};
+  const ridged=(x,y)=>{let s=0,a=.5,f=1,w=1;for(let o=0;o<5;o++){let n=1-Math.abs(vn(x*f,y*f)*2-1);n*=n*w;w=Math.min(1,n*1.6);s+=n*a;a*=.5;f*=2.03}return s};
+  const fbm=(x,y)=>{let s=0,a=.5,f=1;for(let o=0;o<4;o++){s+=vn(x*f,y*f)*a;a*=.5;f*=2.1}return s};
+  const sm=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t)};
+  const E=new Float32Array(N);
+  for(let y=0;y<CH;y++){const lat=LAT0-(y/SC)/1000;
+    for(let x=0;x<CW;x++){const i=y*CW+x;if(wat[i]){E[i]=-1;continue}
+      const lon=LON0+(x/SC)/K;
+      const up=sm(-122.40,-122.02,lon)*(1-.35*sm(48.93,49.02,lat)*(1-sm(-122.2,-122.0,lon)));
+      const south=sm(48.78,48.70,lat)*sm(-122.56,-122.44,lon)*(1-up);
+      const nx=x/SC*.045,ny=y/SC*.045;
+      const rg=ridged(nx,ny),fb=fbm(nx*2.2,ny*2.2);
+      let e=18+42*fb+up*(380+1350*rg*(.55+.45*sm(-122.2,-121.7,lon)))+south*(160+520*rg);
+      for(let p=0;p<peaks.length;p++){const P=peaks[p],dx=(lon-P[1])*73.25,dy=(lat-P[0])*111.2,d2=(dx*dx+dy*dy)/(P[3]*P[3]);
+        if(d2<9)e+=P[2]*(P[4]?Math.exp(-Math.pow(d2,.75)):Math.exp(-d2))*(.8+.35*rg)}
+      const dk=D[i]*kmpx,wv=.7+up*2.4,cv=Math.exp(-(dk*dk)/(wv*wv)),fl=12+up*140;
+      e=e+(fl-e)*cv*.92;
+      E[i]=e}}
+  // shade + color
+  const out=new Uint8ClampedArray(N*4),cell=kmpx*1000,ex=2.2;
+  const L=[-.5,-.5,.707];const Ln=Math.hypot(...L);L[0]/=Ln;L[1]/=Ln;L[2]/=Ln;
+  const R=[[0,[30,60,56]],[120,[32,64,62]],[450,[30,62,68]],[900,[36,66,76]],[1500,[58,84,95]],[2000,[100,124,134]],[2400,[168,192,200]],[3300,[222,238,242]]];
+  const ramp=e=>{for(let k=1;k<R.length;k++)if(e<=R[k][0]){const a=R[k-1],b=R[k],t=(e-a[0])/(b[0]-a[0]);return[a[1][0]+(b[1][0]-a[1][0])*t,a[1][1]+(b[1][1]-a[1][1])*t,a[1][2]+(b[1][2]-a[1][2])*t]}return R[R.length-1][1]};
+  for(let y=0;y<CH;y++)for(let x=0;x<CW;x++){const i=y*CW+x,o=i*4,e=E[i];
+    if(e<0){const n=vn(x*.05,y*.05)*6;out[o]=5+n*.3;out[o+1]=20+n;out[o+2]=31+n;out[o+3]=255;continue}
+    const eL=E[x>0?i-1:i],eR=E[x<CW-1?i+1:i],eU=E[y>0?i-CW:i],eD=E[y<CH-1?i+CW:i];
+    const gx=((eR<0?e:eR)-(eL<0?e:eL))/(2*cell)*ex,gy=((eD<0?e:eD)-(eU<0?e:eU))/(2*cell)*ex;
+    const nl=Math.hypot(gx,gy,1),sh=Math.max(0,(-gx*L[0]-gy*L[1]+L[2])/nl);
+    const c=ramp(e),f=.32+.95*sh;
+    let r=c[0]*f,g=c[1]*f,b=c[2]*f;
+    const lv=Math.floor(e/200);
+    if((eR>=0&&Math.floor(eR/200)!==lv)||(eD>=0&&Math.floor(eD/200)!==lv)){const idx=Math.floor(Math.max(e,eR,eD)/200)%5===0,a=idx?.34:.14;r+= (111-r)*a;g+=(227-g)*a;b+=(242-b)*a}
+    out[o]=r;out[o+1]=g;out[o+2]=b;out[o+3]=255}
+  return out;
+}
+const PEAK_DATA=[[48.7768,-121.8144,2750,6.5,1],[48.8309,-121.6029,1800,3.2,0],[48.73,-121.99,1150,2.4,0],[48.70,-121.985,1250,2.4,0],[48.675,-121.975,900,2.2,0],
+  [48.935,-122.19,650,4.5,0],[48.96,-121.98,700,7,0],[48.935,-121.78,900,3.5,0],[48.98,-121.70,1000,6,0],[48.77,-122.265,450,3,0],[48.765,-122.33,500,3.5,0],
+  [48.72,-122.37,500,4,0],[48.69,-122.46,330,3.2,0],[48.61,-122.41,300,2.6,0],[48.66,-122.05,650,5,0],[48.84,-122.06,700,5,0],[48.62,-121.75,900,8,0]];
+function paintTerrain(buf){
+  const c=document.createElement("canvas");c.width=CW;c.height=CH;
+  c.getContext("2d").putImageData(new ImageData(buf,CW,CH),0,0);
+  const done=u=>{$("#terrain").setAttribute("href",u);$("#loading").hidden=true};
+  if(c.toBlob)c.toBlob(b=>done(b?URL.createObjectURL(b):c.toDataURL()),"image/png");else done(c.toDataURL());
+}
+function runTerrain(){
+  const{wat,riv}=buildMask();
+  const msg={CW,CH,SC,LON0,LAT0,K,KM,wat,riv,peaks:PEAK_DATA};
+  try{
+    const src=`const terrainJob=${terrainJob.toString()};onmessage=e=>{const o=terrainJob(e.data);postMessage(o,[o.buffer])}`;
+    const w=new Worker(URL.createObjectURL(new Blob([src],{type:"text/javascript"})));
+    w.onmessage=e=>{paintTerrain(e.data);w.terminate()};
+    w.onerror=()=>{w.terminate();paintTerrain(terrainJob({...msg,...buildMask()}))};
+    w.postMessage(msg,[wat.buffer,riv.buffer]);
+  }catch(_){paintTerrain(terrainJob(msg))}
+}
+requestAnimationFrame(()=>setTimeout(runTerrain,30));
+
+/* ============ pan / zoom ============ */
+const vb={x:0,y:0,w:W,h:H};let zoom=1;
+function applyVB(){
+  svg.setAttribute("viewBox",`${vb.x.toFixed(2)} ${vb.y.toFixed(2)} ${vb.w.toFixed(2)} ${vb.h.toFixed(2)}`);
+  zoom=W/vb.w;const s=1/zoom;
+  for(const n of PTS){const r=n.dataset.rot;n.setAttribute("transform",`translate(${n.dataset.x} ${n.dataset.y}) scale(${s})${r?` rotate(${r})`:""}`)}
+  updateScale();
+}
+function clampVB(){vb.w=Math.max(W/10,Math.min(W,vb.w));vb.h=vb.w*H/W;vb.x=Math.max(-vb.w*.25,Math.min(W-vb.w*.75,vb.x));vb.y=Math.max(-vb.h*.25,Math.min(H-vb.h*.75,vb.y))}
+function toSvg(cx,cy){const m=svg.getScreenCTM();if(!m)return[0,0];const p=new DOMPoint(cx,cy).matrixTransform(m.inverse());return[p.x,p.y]}
+function zoomAt(f,cx,cy){const[px,py]=cx==null?[vb.x+vb.w/2,vb.y+vb.h/2]:toSvg(cx,cy);
+  const nw=Math.max(W/10,Math.min(W,vb.w*f)),k=nw/vb.w;vb.x=px-(px-vb.x)*k;vb.y=py-(py-vb.y)*k;vb.w=nw;vb.h=nw*H/W;clampVB();applyVB()}
+function flyTo(x,y,w){const s={...vb},t={w,h:w*H/W,x:x-w/2,y:y-w*H/W/2},t0=performance.now(),dur=matchMedia("(prefers-reduced-motion: reduce)").matches?0:520;
+  const step=now=>{const k=dur?Math.min(1,(now-t0)/dur):1,e=1-Math.pow(1-k,3);vb.x=s.x+(t.x-s.x)*e;vb.y=s.y+(t.y-s.y)*e;vb.w=s.w+(t.w-s.w)*e;vb.h=vb.w*H/W;applyVB();if(k<1)requestAnimationFrame(step);else{clampVB();applyVB()}};
+  requestAnimationFrame(step)}
+function updateScale(){const m=svg.getScreenCTM();if(!m)return;const kmPerPx=KM/m.a;const target=kmPerPx*110;const nice=[.5,1,2,5,10,20,30];let km=nice[0];for(const n of nice)if(n<=target)km=n;
+  $("#sb-b").style.width=(km/kmPerPx).toFixed(0)+"px";$("#sb-l").textContent=km+" km"}
+const pointers=new Map();let drag=null,moved=false,pinch=null;
+svg.addEventListener("pointerdown",e=>{pointers.set(e.pointerId,[e.clientX,e.clientY]);moved=false;
+  if(pointers.size===1){const m=svg.getScreenCTM();drag={cx:e.clientX,cy:e.clientY,x:vb.x,y:vb.y,u:1/(m?m.a:1)}}
+  else if(pointers.size===2){const[a,b]=[...pointers.values()];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1]),w:vb.w};drag=null}
+});
+svg.addEventListener("pointermove",e=>{
+  const[sx,sy]=toSvg(e.clientX,e.clientY),[la,lo]=unP(sx,sy);
+  $("#readout").textContent=`${la.toFixed(4)}° N · ${Math.abs(lo).toFixed(4)}° W`;
+  moveTip(e);
+  if(!pointers.has(e.pointerId))return;pointers.set(e.pointerId,[e.clientX,e.clientY]);
+  if(pinch&&pointers.size===2){const[a,b]=[...pointers.values()],d=Math.hypot(a[0]-b[0],a[1]-b[1]);zoomAt((pinch.w*pinch.d/d)/vb.w,(a[0]+b[0])/2,(a[1]+b[1])/2);moved=true;return}
+  if(drag){const dx=e.clientX-drag.cx,dy=e.clientY-drag.cy;if(!moved&&Math.hypot(dx,dy)>4){moved=true;svg.classList.add("dragging");try{svg.setPointerCapture(e.pointerId)}catch(_){}}
+    if(moved){vb.x=drag.x-dx*drag.u;vb.y=drag.y-dy*drag.u;clampVB();applyVB();hideTip()}}
+});
+const endPtr=e=>{pointers.delete(e.pointerId);if(pointers.size<2)pinch=null;if(!pointers.size){drag=null;svg.classList.remove("dragging")}};
+svg.addEventListener("pointerup",endPtr);svg.addEventListener("pointercancel",endPtr);svg.addEventListener("pointerleave",e=>{if(!pointers.size)hideTip()});
+svg.addEventListener("click",e=>{if(moved){e.stopPropagation();e.preventDefault()}},true);
+svg.addEventListener("wheel",e=>{e.preventDefault();zoomAt(Math.exp(e.deltaY*.0015),e.clientX,e.clientY)},{passive:false});
+$("#zin").onclick=()=>zoomAt(.7);$("#zout").onclick=()=>zoomAt(1/.7);$("#zreset").onclick=()=>flyTo(W/2,H/2,W);
+new ResizeObserver(()=>updateScale()).observe($("#mapwrap"));
+
+/* tooltip */
+const tip=$("#tip"),wrap=$("#mapwrap");let tipOn=false;
+function showTip(t,s){tip.innerHTML=`${esc(t)}<small>${esc(s)}</small>`;tip.hidden=false;tipOn=true}
+function hideTip(){tip.hidden=true;tipOn=false}
+function moveTip(e){if(!tipOn)return;const r=wrap.getBoundingClientRect();tip.style.left=(e.clientX-r.left)+"px";tip.style.top=(e.clientY-r.top)+"px"}
+
+/* layers */
+$$(".chip[data-layer]").forEach(b=>b.addEventListener("click",()=>{
+  const on=b.getAttribute("aria-pressed")!=="true";b.setAttribute("aria-pressed",on);const L=b.dataset.layer;
+  if(L==="flow")$$(".riv-flow").forEach(p=>p.style.display=on?"":"none");
+  else if(L==="lab"){$("#g-lab").style.display=on?"":"none"}
+  else $$(`#g-pts .pt[data-layer="${L}"]`).forEach(p=>p.style.display=on?"":"none");
+}));
+
+/* ============ simulated broodstock database ============ */
+const NM=96, BYS=[2019,2020,2021,2022,2023,2024], RY_NOW=2025;
+const LOCS={
+ "Kendall Creek adult trap":[48.913,-122.142],"North Fork at Maple Falls":[48.915,-122.08],"Kendall Creek outmigrant trap":[48.917,-122.135],
+ "Racehorse Creek":[48.885,-122.138],"Canyon Creek":[48.912,-122.025],"Glacier Creek":[48.872,-121.925],
+ "Mainstem smolt trap, Nugents Corner":[48.866,-122.285],"Lower mainstem juvenile trap":[48.936,-122.418],"Marietta estuary trap":[48.787,-122.598],
+ "Upper North Fork survey":[48.892,-121.985],"Middle Fork survey":[48.776,-122.03],"South Fork survey":[48.70,-122.18],"Bellingham Bay fishery":[48.742,-122.565],
+ "Skookum Creek adult trap":[48.6835,-122.1465],"South Fork at Saxon":[48.683,-122.162],"Skookum Creek outmigrant trap":[48.679,-122.14],
+ "South Fork screw trap, Acme":[48.722,-122.201],"Hutchinson Creek":[48.725,-122.17]
+};
+const PROG={
+ KC:{name:"Kendall Creek Hatchery",fork:"North Fork",fem:14,mal:12,hs:.6,rel:[["KC-ONS",3],["KC-UNF",2],["KC-MF",2]],
+   coll:[["Kendall Creek adult trap",3],["North Fork at Maple Falls",1]],
+   juv:[["Kendall Creek outmigrant trap",3],["North Fork at Maple Falls",3],["Canyon Creek",2],["Racehorse Creek",2],["Glacier Creek",2],["Mainstem smolt trap, Nugents Corner",3],["Lower mainstem juvenile trap",3],["Marietta estuary trap",2]],
+   ad:[["Upper North Fork survey",4],["Middle Fork survey",2],["Bellingham Bay fishery",2],["South Fork survey",.4],["Kendall Creek adult trap",3]],
+   marks:[["unmarked",5],["CWT + ad-clip",3],["CWT only",1]]},
+ SK:{name:"Skookum Creek Hatchery",fork:"South Fork",fem:6,mal:5,hs:.4,rel:[["SK-ONS",1]],
+   coll:[["Skookum Creek adult trap",2],["South Fork at Saxon",1]],
+   juv:[["Skookum Creek outmigrant trap",3],["South Fork screw trap, Acme",3],["Hutchinson Creek",1],["Mainstem smolt trap, Nugents Corner",1],["Lower mainstem juvenile trap",2],["Marietta estuary trap",2]],
+   ad:[["South Fork survey",4],["Bellingham Bay fishery",1.5],["Upper North Fork survey",.3],["Skookum Creek adult trap",3]],
+   marks:[["unmarked",6],["CWT only",2]]}
+};
+const pickW=(r,a)=>{let t=0;for(const x of a)t+=x[1];let u=r()*t;for(const x of a){u-=x[1];if(u<=0)return x[0]}return a[a.length-1][0]};
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmtD=d=>`${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`;
+const dIn=(r,y,m0,d0,m1,d1)=>{const a=new Date(y,m0-1,d0).getTime(),b=new Date(y,m1-1,d1).getTime();return new Date(a+Math.floor(r()*((b-a)/864e5+1))*864e5)};
+const hashS=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0};
+const DB={fish:{},parents:[],juv:[],adults:[],crosses:[]};
+(function buildDB(){
+  const r=rng(20260922),used=new Set(),seq={};
+  const uid=pre=>{let id;do{id=pre+String(Math.floor(r()*9000)+100).padStart(4,"0")}while(used.has(id));used.add(id);return id};
+  const nxt=(pre,w)=>{seq[pre]=(seq[pre]||Math.floor(r()*40)+20)+1+Math.floor(r()*3);return pre+String(seq[pre]).padStart(w,"0")};
+  const yy=y=>String(y%100).padStart(2,"0");
+  for(const p in PROG){const G=PROG[p],freq=Array.from({length:NM},()=>.12+r()*.76);
+    for(const by of BYS){
+      const mk=sex=>{const age=pickW(r,[[3,2],[4,5],[5,2]]),base=age===3?58:age===4?68:80;
+        const f={id:uid(`${p}${yy(by)}-${sex}`),type:"parent",sex,prog:p,by,age,origin:r()<G.hs?"hatchery":"natural",
+          len:base+Math.round(r()*(sex==="M"?11:14)),geno:freq.map(q=>r()<.012?null:(r()<q?1:0)+(r()<q?1:0)),loc:pickW(r,G.coll),crosses:[],date:null};
+        DB.fish[f.id]=f;DB.parents.push(f);return f};
+      const F=[],M=[];for(let i=0;i<G.fem;i++)F.push(mk("F"));for(let i=0;i<G.mal;i++)M.push(mk("M"));
+      for(const f of F){
+        f.date=dIn(r,by,8,5,9,22);
+        const pool=M.slice();for(let i=pool.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]]}
+        pool.slice(0,pickW(r,[[1,3],[2,5],[3,2]])).forEach(m=>{
+          if(!m.date||f.date<m.date)m.date=f.date;
+          const c={id:`${m.id} × ${f.id}`,dam:f,sire:m,by,prog:p,rel:pickW(r,G.rel),juv:[],ad:[]};
+          f.crosses.push(c);m.crosses.push(c);DB.crosses.push(c);
+          const nj=Math.floor(r()*r()*15)+(r()<.85?1:0);
+          for(let k=0;k<nj;k++){
+            const yl=r()<.3,year=by+(yl?2:1);if(year>RY_NOW)continue;
+            let stage,date,len;
+            if(yl){stage="yearling smolt";date=dIn(r,year,4,1,5,31);len=118+Math.round(r()*42)}
+            else{stage=pickW(r,[["fry",3],["parr",2],["subyearling smolt",4]]);
+              if(stage==="fry"){date=dIn(r,year,2,15,4,15);len=35+Math.round(r()*10)}
+              else if(stage==="parr"){date=dIn(r,year,5,1,7,15);len=55+Math.round(r()*30)}
+              else{date=dIn(r,year,5,15,7,31);len=82+Math.round(r()*55)}}
+            const mm=r()<.8?0:1;
+            const j={id:nxt(`JV${yy(year)}-`,5),type:"juv",cross:c,year,stage,date,len,mark:stage==="fry"?"unmarked":pickW(r,G.marks),site:pickW(r,G.juv),mm,lod:(13.2+r()*6.2-mm*1.1).toFixed(2)};
+            c.juv.push(j);DB.juv.push(j);DB.fish[j.id]=j}
+          if(by+3<=RY_NOW){const na=r()<.5?0:r()<.65?1:r()<.7?2:3;
+            for(let k=0;k<na;k++){const age=pickW(r,[[3,3],[4,5],[5,2]]),ry=by+age;if(ry>RY_NOW)continue;
+              const site=pickW(r,G.ad),kind=/fishery/.test(site)?"catch":/trap/.test(site)?"broodstock":"carcass";
+              const date=kind==="catch"?dIn(r,ry,6,1,8,15):kind==="broodstock"?dIn(r,ry,7,1,9,15):dIn(r,ry,8,15,10,5);
+              const sex=r()<.5?"F":"M",base=age===3?58:age===4?68:80,mm=r()<.8?0:1;
+              const a={id:nxt(`AD${yy(ry)}-`,4),type:"adult",cross:c,ry,age,sex,len:base+Math.round(r()*13),site,kind,date,mark:pickW(r,G.marks),mm,lod:(13.6+r()*6-mm*1.1).toFixed(2)};
+              c.ad.push(a);DB.adults.push(a);DB.fish[a.id]=a}}
+        });
+      }
+    }
+  }
+  // feature spawner: KC 2021 female with the richest record gets a memorable ID
+  const cand=DB.parents.filter(f=>f.prog==="KC"&&f.by===2021&&f.sex==="F");
+  const score=f=>f.crosses.reduce((s,c)=>s+c.juv.length+6*c.ad.length,0)+(f.crosses.length===2?4:0);
+  const best=cand.sort((a,b)=>score(b)-score(a))[0];
+  delete DB.fish[best.id];best.id="KC21-F0524";DB.fish[best.id]=best;best.crosses.forEach(c=>c.id=`${c.sire.id} × ${best.id}`);
+  DB.feature=best.id;
+  DB.featureSK=DB.parents.filter(f=>f.prog==="SK"&&f.sex==="F"&&f.by<=2021).sort((a,b)=>score(b)-score(a))[0].id;
+})();
+function genoOf(o){
+  if(o.geno)return o.geno;if(o._g)return o._g;
+  const r=rng(hashS(o.id)),d=o.cross.dam.geno,s=o.cross.sire.geno,g=[];
+  const t=x=>x==null?(r()<.5?1:0):x===0?0:x===2?1:(r()<.5?1:0);
+  for(let i=0;i<NM;i++){const v=t(d[i])+t(s[i]);g.push(r()<.015?null:v)}
+  const bad=[];let tries=0;
+  while(bad.length<o.mm&&tries<600){tries++;const i=Math.floor(r()*NM);if(g[i]==null||d[i]==null||s[i]==null||bad.includes(i))continue;
+    const v=[0,1,2].find(v=>!compatG(v,d[i],s[i]));if(v==null)continue;g[i]=v;bad.push(i)}
+  o._bad=new Set(bad);return o._g=g;
+}
+const passG=(g,a)=>a===1?g>=1:g<=1;
+const compatG=(o,a,b)=>[[0,0],[0,1],[1,0],[1,1]].some(([x,y])=>x+y===o&&passG(a,x)&&passG(b,y));
+const readN=g=>g.filter(v=>v!=null).length;
+const hetO=g=>{const n=readN(g);return n?g.filter(v=>v===1).length/n:0};
+const GCOL=["#1FA3B2","#E9B44C","#DCEEF2"];
+function barcode(g,bad,h=18,cls=""){
+  const d=["","",""];let miss="",mm="";
+  for(let i=0;i<NM;i++){const v=g[i],x=i*3;
+    if(v==null)miss+=`M${x} ${h/2-1}h2v2h-2z`;else d[v]+=`M${x} 0h2v${h}h-2z`;
+    if(bad&&bad.has(i))mm+=`M${x-.5} 0h3v${h}h-3zM${x-1} ${h+2}h4l-2 3z`}
+  return `<svg class="bc ${cls}" viewBox="-1 0 ${NM*3+1} ${h+6}" preserveAspectRatio="none" aria-hidden="true">${d.map((p,i)=>p?`<path d="${p}" fill="${GCOL[i]}"/>`:"").join("")}${miss?`<path d="${miss}" fill="#3A5561"/>`:""}${mm?`<path d="${mm}" fill="#FF5E5B"/>`:""}</svg>`;
+}
+
+/* ============ site tables from the database ============ */
+const SIM={};
+function simSite(s){
+  if(SIM[s.id])return SIM[s.id];
+  const r=rng(hashS(s.id)),juvSite=s.kind==="Juvenile trap";
+  const recs=juvSite?DB.juv.filter(j=>j.site===s.name&&j.year===RY_NOW):DB.adults.filter(a=>a.site===s.name&&a.ry===RY_NOW);
+  const rows=recs.map(x=>({id:x.id,k:x.cross.prog.toLowerCase(),by:x.cross.by,age:juvSite?x.year-x.cross.by:x.age,cross:x.cross.id,rel:x.cross.rel,lod:x.lod,mm:x.mm,ref:x}));
+  const hs=(s.mix.kc||0)+(s.mix.sk||0),scale=rows.length/Math.max(hs,.05);
+  const pre=juvSite?`JV${RY_NOW%100}-`:`AD${RY_NOW%100}-`;
+  ["fh","nat","unr"].forEach(k=>{const n=Math.round(scale*(s.mix[k]||0));for(let i=0;i<n;i++){
+    const id=pre+String(Math.floor(r()*(juvSite?90000:9000))+(juvSite?10000:1000));
+    rows.push(k==="fh"?{id,k,by:null,age:juvSite?1:(r()<.6?3:4),cross:"—",rel:"GSI: fall",lod:"—",mm:"—"}:{id,k,by:null,age:null,cross:"—",rel:"—",lod:"—",mm:k==="unr"?"—":">4"})}});
+  for(let i=rows.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[rows[i],rows[j]]=[rows[j],rows[i]]}
+  const cnt={};rows.forEach(x=>cnt[x.k]=(cnt[x.k]||0)+1);
+  return SIM[s.id]={rows,cnt,n:rows.length};
+}
+function compBar(cnt,n){
+  const keys=Object.keys(CATS).filter(k=>cnt[k]);
+  return `<div class="comp" role="img" aria-label="${keys.map(k=>CATS[k].label+" "+Math.round(cnt[k]/n*100)+"%").join(", ")}">${keys.map(k=>`<span style="flex:${cnt[k]};background:${CATS[k].c}"></span>`).join("")}</div>
+  <div class="legend">${keys.map(k=>`<span><i style="background:${CATS[k].c}"></i>${CATS[k].label} <b>${Math.round(cnt[k]/n*100)}%</b></span>`).join("")}</div>`;
+}
+
+/* ============ inspector ============ */
+const IH=$("#insp-h"),IB=$("#insp-b");let current=null;
+function setSel(sel){
+  $$("#g-pts .pt").forEach(p=>p.classList.toggle("sel",sel&&sel.type==="site"&&p.dataset.id===sel.id));
+  for(const k in reachEls){const on=sel&&((sel.type==="reach"&&sel.id===k)||(sel.type==="site"&&SITES.find(s=>s.id===sel.id).reach===k));
+    reachEls[k].classList.toggle("on",!!on);reachEls[k].classList.toggle("dim",!!sel&&!on)}
+}
+function header(eyebrow,title,back){IH.innerHTML=`${back?`<button class="back" aria-label="Back to basin overview" id="back">←</button>`:""}<div><div class="eyebrow">${eyebrow}</div><h2>${title}</h2></div>`;
+  if(back)$("#back").onclick=()=>select(null,true)}
+function overview(){
+  header("Basin overview","Nooksack River");
+  const tot={};let n=0;SITES.filter(s=>s.mix).forEach(s=>{const d=simSite(s);for(const k in d.cnt)tot[k]=(tot[k]||0)+d.cnt[k];n+=d.n});
+  IB.innerHTML=`
+  <p>Glacier-fed from Mt. Baker and Mt. Shuksan, the Nooksack drains the North Cascades to Bellingham Bay. Three forks meet near Deming to form the mainstem. Select a reach or a site on the map to see how <button class="t" data-t="pbt">parentage-based tagging</button> traces fish back to their hatchery parents.</p>
+  <div><div class="eyebrow" style="margin-bottom:8px">River reaches</div><ul class="list">
+  ${["main","nf","mf","sf"].map(k=>`<li><button class="row-btn" data-reach="${k}" style="color:${REACHES[k].hex}"><span class="sw"></span><span style="color:var(--text)"><b>${REACHES[k].name}</b><small>${REACH_INFO[k].from} → ${REACH_INFO[k].to}</small></span><span class="go">›</span></button></li>`).join("")}
+  </ul></div>
+  <div><div class="eyebrow" style="margin-bottom:8px;display:flex;gap:8px;align-items:center">Assignment summary · all sampling sites <span class="tag sim">Simulated</span></div>
+  ${compBar(tot,n)}
+  <p class="note" style="margin-top:10px">${n} fish across ${SITES.filter(s=>s.mix).length} example sampling sites. Values are demonstration data, not survey results.</p></div>
+  <div><div class="eyebrow" style="margin-bottom:8px">Sites</div><ul class="list">
+  ${SITES.filter(s=>s.kind!=="Landmark").map(s=>`<li><button class="row-btn" data-site="${s.id}" style="color:${s.layer==="hat"?"#FF8A66":s.layer==="smp"?"#62D69E":"#E4DCC6"}"><span class="dot"></span><span style="color:var(--text)"><b>${esc(s.name)}</b><small>${s.kind}${s.op?" · "+s.op:""}</small></span><span class="go">›</span></button></li>`).join("")}
+  </ul></div>`;
+}
+function reachView(k){
+  const R=REACHES[k],I=REACH_INFO[k];
+  header(`<span style="color:${R.hex}">● River reach</span>`,R.name==="Mainstem"?"Nooksack Mainstem":R.name+" Nooksack",true);
+  const here=SITES.filter(s=>s.reach===k&&s.kind!=="Landmark");
+  IB.innerHTML=`<dl class="kv"><dt>Source</dt><dd>${I.from}</dd><dt>Mouth</dt><dd>${I.to}</dd><dt>Passes</dt><dd>${I.pass}</dd></dl>
+  <p>${I.body}</p>
+  <div><div class="eyebrow" style="margin-bottom:8px">Stocks &amp; programs</div><ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:14px;color:#C3D8DD">${I.stocks.map(s=>`<li>${s}</li>`).join("")}</ul></div>
+  ${here.length?`<div><div class="eyebrow" style="margin-bottom:8px">On this reach</div><ul class="list">${here.map(s=>`<li><button class="row-btn" data-site="${s.id}" style="color:${s.layer==="hat"?"#FF8A66":s.layer==="smp"?"#62D69E":"#E4DCC6"}"><span class="dot"></span><span style="color:var(--text)"><b>${esc(s.name)}</b><small>${s.kind}</small></span><span class="go">›</span></button></li>`).join("")}</ul></div>`:""}
+  <p class="note">River courses are traced by hand and approximate.</p>`;
+}
+function siteView(id){
+  const s=SITES.find(x=>x.id===id),R=REACHES[s.reach];
+  header(`${s.kind} · <span style="color:${R.hex}">${R.name}</span>`,esc(s.name),true);
+  let h=`<dl class="kv">${s.op?`<dt>Operator</dt><dd>${s.op}</dd>`:""}${s.prog?`<dt>Program</dt><dd>${s.prog}</dd>`:""}${s.code?`<dt>Release code</dt><dd class="mono">${s.code}</dd>`:""}<dt>Location</dt><dd class="mono">${s.lat.toFixed(3)}° N, ${Math.abs(s.lon).toFixed(3)}° W <span style="color:var(--faint)">(approx.)</span></dd></dl><p>${esc(s.desc)}</p>`;
+  if(s.pbt)h+=`<div><div class="eyebrow" style="margin-bottom:6px">Role in PBT</div><p>${esc(s.pbt)}</p></div>`;
+  if(s.id==="kc"||s.id==="sk"){const fid=s.id==="kc"?DB.feature:DB.featureSK,pr=s.id.toUpperCase(),np=DB.parents.filter(p=>p.prog===pr).length,nj=DB.juv.filter(j=>j.cross.prog===pr).length;
+    h+=`<div class="callout">${np} broodstock genotyped across brood years ${BYS[0]}–${BYS[BYS.length-1]}; ${nj} juveniles matched back to them. <span class="tag sim">Simulated</span></div><button class="btn" data-traceroot="${fid}">Open Brood Trace · ${fid}</button>`}
+  if(s.layer==="rel")h+=`<p>Every juvenile released here carries the release code through its parents' records — any fish that assigns to a cross from this release group is attributed to <span class="mono">${s.code}</span>.</p>`;
+  if(s.mix){
+    const d=simSite(s),shown=d.rows.slice(0,10);
+    h+=`<div><div class="eyebrow" style="margin-bottom:8px;display:flex;gap:8px;align-items:center">PBT assignment results · n=${d.n} <span class="tag sim">Simulated</span></div>${compBar(d.cnt,d.n)}</div>
+    <div><div class="tbl-wrap"><table class="fish"><thead><tr><th>Sample</th><th>Origin</th><th>Brood yr</th><th>Age</th><th>Parent cross</th><th>Release</th><th>LOD</th><th>Mism.</th></tr></thead><tbody id="fish-body">${rowsHTML(shown)}</tbody></table></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:10px;flex-wrap:wrap"><span style="font-size:12px;color:var(--muted)">Showing <span id="fish-n">${shown.length}</span> of ${d.n}</span><button class="ghost" id="fish-more">Show all ${d.n}</button></div></div>
+    <p class="note">Assignments require both parents (a <button class="t" data-t="trio">trio</button>) with ≤1 <button class="t" data-t="mendel">Mendelian mismatch</button>. Fish with no compatible pair are presumed <button class="t" data-t="nor">natural-origin</button>. Return year 2025. Select a sample ID to open its family in Brood Trace.</p>`;
+  }
+  IB.innerHTML=h;
+  const more=$("#fish-more");if(more)more.onclick=()=>{const d=simSite(s),all=more.dataset.all!=="1";$("#fish-body").innerHTML=rowsHTML(all?d.rows:d.rows.slice(0,10));$("#fish-n").textContent=all?d.n:10;more.dataset.all=all?"1":"0";more.textContent=all?"Show fewer":`Show all ${d.n}`};
+}
+function rowsHTML(rows){return rows.map(r=>`<tr><td>${r.ref?`<button class="lnk" data-trace="${r.ref.id}" title="Open in Brood Trace">${r.id}</button>`:r.id}</td><td><span class="pill"><i style="background:${CATS[r.k].c}"></i>${{kc:"KC hatchery",sk:"SK hatchery",fh:"Fall hatchery",nat:"Natural",unr:"Unresolved"}[r.k]}</span></td><td>${r.by??"—"}</td><td>${r.age??"—"}</td><td>${r.cross}</td><td>${r.rel}</td><td>${r.lod}</td><td>${r.mm}</td></tr>`).join("")}
+
+function select(sel,fly){
+  current=sel;setSel(sel);IB.scrollTop=0;
+  if(!sel){overview();if(fly)flyTo(W/2,H/2,W);return}
+  if(sel.type==="reach"){reachView(sel.id);const xs=[],ys=[];REACHES[sel.id].pts.forEach(p=>{const[x,y]=P(p[0],p[1]);xs.push(x);ys.push(y)});
+    const cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2,w=Math.max(Math.max(...xs)-Math.min(...xs),(Math.max(...ys)-Math.min(...ys))*W/H)*1.35;flyTo(cx,cy,Math.min(W,Math.max(W/6,w)))}
+  else{siteView(sel.id);const s=SITES.find(x=>x.id===sel.id),[x,y]=P(s.lat,s.lon);flyTo(x,y,Math.min(vb.w,W/2.6))}
+}
+IB.addEventListener("click",e=>{
+  const tr=e.target.closest("[data-trace]");if(tr){const x=DB.fish[tr.dataset.trace];openTrace(x.cross.dam.id,x.id);return}
+  const tro=e.target.closest("[data-traceroot]");if(tro){openTrace(tro.dataset.traceroot);return}
+  const b=e.target.closest("[data-reach],[data-site]");if(!b)return;
+  if(b.dataset.reach)select({type:"reach",id:b.dataset.reach});else select({type:"site",id:b.dataset.site})});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("#pop").hidden)hidePop();
+  else if(!$("#v-trace").hidden){if(TR.sel){TR.sel=null;renderTrace()}else if(TR.stack.length)$("#tr-back").click()}
+  else if(current&&!$("#v-atlas").hidden)select(null,true)}});
+svg.addEventListener("click",e=>{if(!moved&&e.target.closest(".pt,.hit")==null&&current)select(null,false)});
+
+/* ============ glossary popover ============ */
+const pop=$("#pop");
+function hidePop(){pop.hidden=true}
+document.addEventListener("click",e=>{
+  const t=e.target.closest(".t");
+  if(t){e.preventDefault();const g=GMAP[t.dataset.t];if(!g)return;
+    pop.innerHTML=`<h4>${esc(g[1])}</h4><p>${esc(g[3])}</p><button class="ghost" data-open="${g[0]}">Open in glossary</button>`;
+    pop.hidden=false;const r=t.getBoundingClientRect(),pw=Math.min(320,innerWidth-32);
+    pop.style.left=Math.max(16,Math.min(innerWidth-pw-16,r.left))+"px";
+    const below=r.bottom+8,ph=pop.offsetHeight;pop.style.top=(below+ph>innerHeight-8?Math.max(8,r.top-ph-8):below)+"px";return}
+  const o=e.target.closest("[data-open]");if(o){hidePop();go("glossary");openTerm(o.dataset.open);return}
+  if(!e.target.closest("#pop"))hidePop();
+});
+addEventListener("scroll",hidePop,{passive:true});
+
+/* ============ glossary view ============ */
+const catList=["All",...new Set(GLOSS.map(g=>g[2]))];let gCat="All";
+$("#gl-cats").innerHTML=catList.map(c=>`<button class="chip" aria-pressed="${c==="All"}" data-cat="${c}" style="color:var(--text)">${c}${c!=="All"?` <span style="color:var(--faint)">${GLOSS.filter(g=>g[2]===c).length}</span>`:""}</button>`).join("");
+$("#gl-cats").addEventListener("click",e=>{const b=e.target.closest("[data-cat]");if(!b)return;gCat=b.dataset.cat;$$("#gl-cats .chip").forEach(x=>x.setAttribute("aria-pressed",x===b));renderGloss()});
+const glq=$("#gl-q");let gT;glq.addEventListener("input",()=>{clearTimeout(gT);gT=setTimeout(renderGloss,80)});
+function renderGloss(){
+  const q=glq.value.trim().toLowerCase();
+  const list=GLOSS.filter(g=>(gCat==="All"||g[2]===gCat)&&(!q||(g[1]+" "+g[3]).toLowerCase().includes(q))).sort((a,b)=>a[1].localeCompare(b[1]));
+  $("#gl-grid").innerHTML=list.map(g=>`<article class="gl" id="g-${g[0]}"><h3>${esc(g[1])}</h3><div class="cat">${g[2]}</div><p>${esc(g[3])}</p></article>`).join("");
+  $("#gl-empty").hidden=list.length>0;
+}
+function openTerm(k){gCat="All";glq.value="";$$("#gl-cats .chip").forEach(x=>x.setAttribute("aria-pressed",x.dataset.cat==="All"));renderGloss();
+  const n=document.getElementById("g-"+k);if(n){n.scrollIntoView({block:"center",behavior:"smooth"});n.classList.add("flash");setTimeout(()=>n.classList.remove("flash"),1800)}}
+renderGloss();
+
+/* ============ parentage lab ============ */
+const LOCI=32;let lab={seed:7,cand:"true",err:false};
+function genoSet(seed){
+  const r=rng(seed),p=()=>{const q=.2+r()*.6;return(r()<q?1:0)+(r()<q?1:0)};
+  const sire=[],dam=[],decoy=[],off=[];
+  for(let i=0;i<LOCI;i++){sire.push(p());dam.push(p());decoy.push(p());
+    const t=g=>g===0?0:g===2?1:(r()<.5?1:0);off.push(t(sire[i])+t(dam[i]))}
+  let forced=0;for(let i=0;i<LOCI&&forced<4;i++){const j=(i*7+3)%LOCI;if(off[j]!==1){decoy[j]=off[j]===2?0:2;forced++}}
+  return{sire,dam,decoy,off,errAt:Math.floor(r()*LOCI)};
+}
+const canPass=(g,a)=>a===1?g>=1:g<=1;
+const compat=(o,a,b)=>[[0,0],[0,1],[1,0],[1,1]].some(([x,y])=>x+y===o&&canPass(a,x)&&canPass(b,y));
+function renderLab(){
+  const G=genoSet(lab.seed),off=G.off.slice();
+  if(lab.err){for(let k=0;k<LOCI;k++){const i=(G.errAt+k)%LOCI,v=[0,1,2].find(v=>!compat(v,G.sire[i],G.dam[i]));if(v!=null){off[i]=v;break}}}
+  const mom=lab.cand==="true"?G.dam:G.decoy;
+  const bad=off.map((o,i)=>!compat(o,G.sire[i],mom[i]));const nb=bad.filter(Boolean).length;
+  const lbl=g=>["AA","AB","BB"][g];
+  const row=(name,sub,arr,mark)=>`<div class="nm"><b>${name}</b>${sub}</div>`+arr.map((g,i)=>`<div class="gc g${g}${mark&&bad[i]?" bad":""}" title="Locus ${i+1}: ${lbl(g)}">${lbl(g)}</div>`).join("");
+  $("#geno").innerHTML=`<div></div>${Array.from({length:LOCI},(_,i)=>`<div class="gidx">${i+1}</div>`).join("")}`+
+    row("Sire","KC24-M047",G.sire)+row(lab.cand==="true"?"Dam":"Candidate dam",lab.cand==="true"?"KC24-F112":"KC24-F009",mom)+row("Unknown fish","S1-017 · carcass",off,true);
+  const ok=nb<=1;
+  $("#verdict").innerHTML=`<div><div class="eyebrow">Incompatible loci</div><div class="big ${ok?"ok":"no"}">${nb} / ${LOCI}</div></div>
+    <div><div class="eyebrow">Result</div><div class="big ${ok?"ok":"no"}" style="font-size:20px">${ok?"ASSIGNED":"EXCLUDED"}</div></div>
+    <p>${ok?(nb?`One mismatch is within the allowed genotyping-error tolerance, so the trio is accepted. The fish is a Kendall Creek hatchery offspring from brood year 2024.`:`Every locus can be explained by these two parents. The fish is assigned to cross KC24-F112 × M047 — Kendall Creek, brood year 2024.`)
+      :`${nb} loci carry alleles this pair could not have passed on — far beyond error tolerance, so this pair is excluded. With a real panel of a few hundred SNPs, unrelated pairs are rejected even more decisively.`}</p>`;
+}
+$$(".seg [data-cand]").forEach(b=>b.onclick=()=>{lab.cand=b.dataset.cand;$$(".seg [data-cand]").forEach(x=>x.setAttribute("aria-pressed",x===b));renderLab()});
+$("#err-btn").onclick=e=>{lab.err=!lab.err;e.currentTarget.setAttribute("aria-pressed",lab.err);e.currentTarget.textContent=lab.err?"Remove genotyping error":"Add genotyping error";renderLab()};
+$("#reroll").onclick=()=>{lab.seed++;renderLab()};
+renderLab();
+
+/* ============ Brood Trace ============ */
+const TR={root:null,hidden:new Set(),open:new Set(),sel:null,stack:[],scale:1};
+const board=$("#board"),bw=$("#bw"),sizer=$("#sizer");
+const sexW=s=>s==="F"?"female":"male";
+function fishSub(f){return f.type==="parent"?`Early Chinook ${sexW(f.sex)} · ${PROG[f.prog].fork}`:f.type==="juv"?`Juvenile · ${f.stage}`:`Returning adult · age ${f.age}`}
+function parentCard(f,o={}){
+  const g=f.geno,n=readN(g),c=o.cross,nOff=c?c.juv.length:0;
+  return `<div class="fc parent${o.root?" root":""}${TR.sel===f.id?" sel":""}" data-fish="${f.id}"${c?` data-ci="${o.ci}"`:""} tabindex="0" role="button" aria-label="${f.id}, ${f.origin}-origin ${sexW(f.sex)}">
+   <div class="fc-h"><span class="sx" aria-hidden="true">${f.sex==="F"?"♀":"♂"}</span><b>${f.id}</b><span class="ob ${f.origin}">${f.origin} origin</span></div>
+   <div class="fc-m">Early Chinook · age ${f.age} · ${f.len} cm<br>Spawned <b>${fmtD(f.date)}</b><br>${f.loc}</div>
+   ${barcode(g)}
+   <div class="fc-f"><span>${NM} markers</span><span>${n}/${NM} read</span></div>
+   ${c?`<button class="fc-t" data-toggle="${o.ci}"><span aria-hidden="true">${TR.hidden.has(o.ci)?"+":"−"}</span>${TR.hidden.has(o.ci)?"Show":"Hide"} the ${nOff} offspring from this cross</button>`:""}
+  </div>`;
+}
+function kidCard(x){
+  const g=genoOf(x),n=readN(g);
+  const meta=x.type==="juv"?`${x.stage} · ${x.len} mm · ${x.mark}<br>Caught <b>${fmtD(x.date)}</b><br>${x.site}`
+    :`${x.sex==="F"?"♀":"♂"} age ${x.age} · ${x.len} cm · ${x.mark}<br>${x.kind==="catch"?"Caught":x.kind==="broodstock"?"Trapped":"Found"} <b>${fmtD(x.date)}</b><br>${x.site}`;
+  return `<div class="fc kid${x.type==="adult"?" adult":""}${TR.sel===x.id?" sel":""}" data-fish="${x.id}" tabindex="0" role="button" aria-label="${x.id}">
+   <div class="fc-h"><b>${x.id}</b>${x.type==="adult"?`<span class="ob ret">${{carcass:"carcass",catch:"catch",broodstock:"trap"}[x.kind]}</span>`:""}</div>
+   <div class="fc-m">${meta}</div>
+   ${barcode(g,x._bad)}
+   <div class="fc-f"><span>LOD ${x.lod}</span><span class="${x.mm?"warn":""}">${x.mm} mismatch${x.mm===1?"":"es"}${n<NM?` · ${n}/${NM}`:""}</span></div>
+  </div>`;
+}
+function renderTrace(){
+  const f=DB.fish[TR.root];if(!f)return;
+  const cr=f.crosses,mateOf=c=>f.sex==="F"?c.sire:c.dam;
+  const juv=cr.flatMap(c=>c.juv),ad=cr.flatMap(c=>c.ad),sites=new Set(juv.map(j=>j.site));
+  const P=PROG[f.prog],she=f.sex==="F"?"She":"He";
+  $("#tr-sum").innerHTML=`<b class="idc">${f.id}</b> is a <b>${f.origin}-origin</b> ${sexW(f.sex)} Early Chinook that spawned at <b>${P.name}</b> on <b>${fmtD(f.date)}</b>. ${she} was crossed with <b>${cr.length}</b> mate${cr.length===1?"":"s"}. Since then, DNA has matched <b>${juv.length}</b> juvenile${juv.length===1?"":"s"} at <b>${sites.size}</b> sampling site${sites.size===1?"":"s"} back to ${f.sex==="F"?"her":"him"}, ${ad.length?`and <b>${ad.length}</b> ${ad.length===1?"has":"have"} come back as adults.`:"though none have been caught returning as adults yet."}`;
+  $("#tr-back").hidden=!TR.stack.length;
+  if(TR.stack.length)$("#tr-back").textContent="← Back to "+TR.stack[TR.stack.length-1];
+  const col=(n,t,s,body,cls="")=>`<div class="col ${cls}"><div class="col-h"><span class="num">${n}</span><div><b>${t}</b><small>${s}</small></div></div>${body}</div>`;
+  let c2=cr.map((c,i)=>parentCard(mateOf(c),{cross:c,ci:i})).join("");
+  let c3="",c4="";
+  cr.forEach((c,i)=>{if(TR.hidden.has(i))return;
+    const list=c.juv.slice().sort((a,b)=>a.date-b.date),open=TR.open.has(i),show=open?list:list.slice(0,4);
+    c3+=`<div class="grp" data-g="${i}"><div class="grp-h">${c.sire.id} × ${c.dam.id}</div>${show.map(kidCard).join("")||`<div class="empty-card">No juveniles from this cross have been matched yet.</div>`}
+      ${list.length>4?`<button class="more" data-more="${i}">${open?"Show fewer":`Show the other ${list.length-4}`}</button>`:""}</div>`;
+    if(c.ad.length)c4+=`<div class="grp" data-a="${i}"><div class="grp-h">${c.sire.id} × ${c.dam.id}</div>${c.ad.slice().sort((a,b)=>a.date-b.date).map(kidCard).join("")}</div>`;
+  });
+  if(!c4){const young=f.by+3>RY_NOW;c4=`<div class="empty-card big">None of these offspring have turned up as returning adults yet. ${young?"With Chinook that usually means the brood year is still too young — most return at age 3 to 5.":"Most juvenile Chinook don't survive to return, so many crosses never produce a sampled adult."}</div>`}
+  board.innerHTML=`<svg class="wires" id="wires" aria-hidden="true"></svg>`+
+    col(1,"The spawner",`The adult Chinook you picked, taken into broodstock at ${f.loc}.`,parentCard(f,{root:true}),"c1")+
+    col(2,"Its mates","The other parent in each cross. Hide or show the offspring that pair produced.",c2,"c2")+
+    col(3,"Their offspring","Juveniles caught out in the river and matched back to this pair by their DNA.",c3||`<div class="empty-card">All crosses are hidden.</div>`,"c3")+
+    col(4,"Came back to spawn","Offspring later caught as returning adults, recognised by the same DNA.",c4,"c4");
+  renderSide();
+  requestAnimationFrame(()=>{drawWires();sizeBoard()});
+}
+function offs(el){let x=0,y=0;while(el&&el!==board){x+=el.offsetLeft;y+=el.offsetTop;el=el.offsetParent}return{x,y}}
+function drawWires(){
+  const w=$("#wires");if(!w||!board.offsetWidth)return;
+  const W2=board.scrollWidth,H2=board.scrollHeight;w.setAttribute("width",W2);w.setAttribute("height",H2);w.setAttribute("viewBox",`0 0 ${W2} ${H2}`);
+  const link=(a,b,cls)=>{if(!a||!b)return"";const p=offs(a),q=offs(b),x1=p.x+a.offsetWidth,y1=p.y+Math.min(a.offsetHeight/2,40),x2=q.x,y2=q.y+Math.min(b.offsetHeight/2,14),m=(x2-x1)/2;
+    return `<path class="${cls}" d="M${x1} ${y1}C${x1+m} ${y1} ${x2-m} ${y2} ${x2} ${y2}"/>`};
+  const root=board.querySelector(".c1 .fc");let d="";
+  board.querySelectorAll(".c2 .fc").forEach(m=>{d+=link(root,m,"w1");const i=m.dataset.ci,g=board.querySelector(`.c3 [data-g="${i}"] .grp-h`);if(g)d+=link(m,g,"w2");
+    const a=board.querySelector(`.c4 [data-a="${i}"] .grp-h`),gg=board.querySelector(`.c3 [data-g="${i}"]`);if(a&&gg)d+=link(gg.querySelector(".grp-h"),a,"w3")});
+  w.innerHTML=d;
+}
+function sizeBoard(){const s=TR.scale;board.style.transform=`scale(${s})`;sizer.style.width=board.scrollWidth*s+"px";sizer.style.height=board.scrollHeight*s+"px";$("#z-v").textContent=Math.round(s*100)+"%"}
+function setScale(s,cx,cy){const old=TR.scale;s=Math.max(.35,Math.min(1.6,s));if(s===old)return;
+  const r=bw.getBoundingClientRect(),px=(cx??r.left+r.width/2)-r.left,py=(cy??r.top+r.height/2)-r.top,bx=(bw.scrollLeft+px)/old,by=(bw.scrollTop+py)/old;
+  TR.scale=s;sizeBoard();bw.scrollLeft=bx*s-px;bw.scrollTop=by*s-py}
+function fitBoard(){const r=bw.getBoundingClientRect();TR.scale=1;sizeBoard();setScale(Math.min(1,(r.width-24)/board.scrollWidth,(r.height-24)/board.scrollHeight));bw.scrollLeft=0;bw.scrollTop=0}
+$("#z-in").onclick=()=>setScale(TR.scale*1.15);$("#z-out").onclick=()=>setScale(TR.scale/1.15);$("#z-fit").onclick=fitBoard;
+bw.addEventListener("wheel",e=>{if(!(e.ctrlKey||e.metaKey))return;e.preventDefault();setScale(TR.scale*Math.exp(-e.deltaY*.002),e.clientX,e.clientY)},{passive:false});
+let bdrag=null;
+bw.addEventListener("pointerdown",e=>{if(e.target.closest(".fc,button,.zoomctl")||e.pointerType==="touch")return;bdrag={x:e.clientX,y:e.clientY,l:bw.scrollLeft,t:bw.scrollTop};bw.classList.add("grab");try{bw.setPointerCapture(e.pointerId)}catch(_){}});
+bw.addEventListener("pointermove",e=>{if(!bdrag)return;bw.scrollLeft=bdrag.l-(e.clientX-bdrag.x);bw.scrollTop=bdrag.t-(e.clientY-bdrag.y)});
+const bEnd=()=>{bdrag=null;bw.classList.remove("grab")};bw.addEventListener("pointerup",bEnd);bw.addEventListener("pointercancel",bEnd);
+board.addEventListener("click",e=>{
+  const t=e.target.closest("[data-toggle]");if(t){const i=+t.dataset.toggle;TR.hidden.has(i)?TR.hidden.delete(i):TR.hidden.add(i);renderTrace();return}
+  const m=e.target.closest("[data-more]");if(m){const i=+m.dataset.more;TR.open.has(i)?TR.open.delete(i):TR.open.add(i);renderTrace();return}
+  const c=e.target.closest("[data-fish]");if(c){TR.sel=TR.sel===c.dataset.fish?null:c.dataset.fish;board.querySelectorAll(".fc.sel").forEach(x=>x.classList.remove("sel"));if(TR.sel)c.classList.add("sel");renderSide();}
+});
+board.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches(".fc")){e.preventDefault();e.target.click()}});
+new ResizeObserver(()=>{if(!$("#v-trace").hidden)drawWires()}).observe(board);
+
+const tile=(v,l,t)=>`<div class="tile"><b>${v}</b><span>${l}${t?` <button class="t q" data-t="${t}" aria-label="What is this?">?</button>`:""}</span></div>`;
+function countRows(obj,clickable){return Object.entries(obj).sort((a,b)=>b[1]-a[1]).map(([k,v])=>clickable&&LOCS[k]?`<button class="cr" data-loc="${esc(k)}"><span>${esc(k)}</span><b>${v}</b></button>`:`<div class="cr"><span>${esc(k)}</span><b>${v}</b></div>`).join("")}
+function renderSide(){
+  const S=$("#tr-side"),f=DB.fish[TR.root];
+  if(TR.sel&&TR.sel!==TR.root){S.innerHTML=fishSide(DB.fish[TR.sel]);return}
+  const juv=f.crosses.flatMap(c=>c.juv),ad=f.crosses.flatMap(c=>c.ad),all=juv.concat(ad);
+  const bySite={},byStage={};juv.forEach(j=>{bySite[j.site]=(bySite[j.site]||0)+1;byStage[j.stage]=(byStage[j.stage]||0)+1});
+  ad.forEach(a=>{bySite[a.site]=(bySite[a.site]||0)+1;byStage["returning adult"]=(byStage["returning adult"]||0)+1});
+  const weak=all.length?Math.min(...all.map(x=>+x.lod)).toFixed(1):"—";
+  S.innerHTML=`<div class="sd-h"><h2 class="mono">${f.id}</h2><p>${fishSub(f)}</p></div>
+  <div class="callout">${f.origin==="hatchery"?"Hatched in a hatchery and returned to spawn there.":`Born in the river and taken into broodstock at ${f.loc}.`} <button class="t q" data-t="${f.origin==="hatchery"?"hor":"nor"}" aria-label="What is this?">?</button></div>
+  <div class="tiles">${tile(f.crosses.length,"Crosses it spawned in","broodstock")}${tile(juv.length,"Offspring matched by DNA","parentage")}${tile(ad.length,"Offspring seen again as adults","escapement")}${tile(weak,"Weakest offspring LOD","lod")}</div>
+  <div class="sd-s"><h3>Its own DNA</h3><div class="dna-box"><span class="mono">${f.id}</span>${barcode(f.geno,null,22,"lg")}</div>
+   <div class="cr"><span>Markers read <button class="t q" data-t="callrate" aria-label="What is this?">?</button></span><b>${readN(f.geno)}/${NM}</b></div>
+   <div class="cr"><span>Observed heterozygosity <button class="t q" data-t="het" aria-label="What is this?">?</button></span><b>${hetO(f.geno).toFixed(3)}</b></div></div>
+  ${all.length?`<div class="sd-s"><h3>Where its offspring turned up</h3>${countRows(bySite,true)}</div>
+  <div class="sd-s"><h3>What stage they were at</h3>${countRows(byStage)}</div>`:""}
+  <div class="sd-s"><h3>Marker key</h3><div class="legend" style="margin:0"><span><i style="background:${GCOL[0]}"></i>AA</span><span><i style="background:${GCOL[1]}"></i>AB</span><span><i style="background:${GCOL[2]}"></i>BB</span><span><i style="background:#3A5561"></i>Not read</span><span><i style="background:#FF5E5B"></i>Mismatch</span></div></div>
+  <div class="callout foot">Puget Sound Chinook ESU, threatened <button class="t q" data-t="esu" aria-label="What is this?">?</button></div>`;
+}
+function fishSide(x){
+  if(x.type==="parent")return `<div class="sd-h"><button class="ghost sm" data-unsel>← ${TR.root}</button><h2 class="mono">${x.id}</h2><p>${fishSub(x)} · ${x.origin} origin</p></div>
+    <div class="sd-s"><h3>Its own DNA</h3><div class="dna-box"><span class="mono">${x.id}</span>${barcode(x.geno,null,22,"lg")}</div>
+    <div class="cr"><span>Markers read</span><b>${readN(x.geno)}/${NM}</b></div><div class="cr"><span>Observed heterozygosity</span><b>${hetO(x.geno).toFixed(3)}</b></div>
+    <div class="cr"><span>Crosses it spawned in</span><b>${x.crosses.length}</b></div><div class="cr"><span>Offspring matched</span><b>${x.crosses.reduce((s,c)=>s+c.juv.length,0)}</b></div></div>
+    <button class="btn" data-retrace="${x.id}">Trace from ${x.id}</button>`;
+  const g=genoOf(x),c=x.cross,bad=x._bad;
+  const row=(lab,id,gg,b)=>`<div class="cmp-row"><span class="mono">${lab}<small>${id}</small></span>${barcode(gg,b,20,"lg")}</div>`;
+  return `<div class="sd-h"><button class="ghost sm" data-unsel>← ${TR.root}</button><h2 class="mono">${x.id}</h2><p>${fishSub(x)}</p></div>
+   <dl class="kv"><dt>${x.type==="juv"?"Caught":"Sampled"}</dt><dd>${fmtD(x.date)}</dd><dt>Where</dt><dd>${esc(x.site)}</dd>
+   <dt>${x.type==="juv"?"Size":"Length"}</dt><dd>${x.type==="juv"?x.len+" mm":x.len+" cm"}</dd><dt>Mark</dt><dd>${x.mark}</dd>
+   <dt>Brood year</dt><dd>${c.by}</dd><dt>Release</dt><dd class="mono">${c.rel}</dd><dt>Parent cross</dt><dd class="mono" style="font-size:12px">${c.id}</dd></dl>
+   <div class="sd-s"><h3>DNA match <button class="t q" data-t="mendel" aria-label="What is this?">?</button></h3>
+    ${row("Dam",c.dam.id,c.dam.geno)}${row("Sire",c.sire.id,c.sire.geno)}${row("Fish",x.id,g,bad)}
+    <div class="verdict sm"><div><div class="eyebrow">LOD</div><div class="big ok">${x.lod}</div></div><div><div class="eyebrow">Mismatches</div><div class="big ${x.mm?"warn":"ok"}">${x.mm}/${readN(g)}</div></div>
+    <p>${x.mm?"One marker (flagged in red) carries an allele neither parent could pass on — within the tolerance for genotyping error, so the trio is accepted.":"Every marker read can be explained by these two parents, so the trio is accepted."}</p></div></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ghost" data-loc="${esc(x.site)}">Show on map</button><button class="ghost" data-retrace="${c.sire.id===TR.root?c.dam.id:c.sire.id}">Trace the other parent</button></div>`;
+}
+$("#tr-side").addEventListener("click",e=>{
+  const u=e.target.closest("[data-unsel]");if(u){TR.sel=null;board.querySelectorAll(".fc.sel").forEach(x=>x.classList.remove("sel"));renderSide();return}
+  const rt=e.target.closest("[data-retrace]");if(rt){openTrace(rt.dataset.retrace);return}
+  const l=e.target.closest("[data-loc]");if(l)showLoc(l.dataset.loc);
+});
+function openTrace(id,focus,noPush){
+  const f=DB.fish[id];if(!f)return false;
+  if(!noPush&&TR.root&&TR.root!==id)TR.stack.push(TR.root);
+  TR.root=id;TR.hidden.clear();TR.open.clear();TR.sel=focus||null;
+  if(focus){const x=DB.fish[focus];const i=f.crosses.indexOf(x.cross);if(i>=0&&x.type==="juv")TR.open.add(i)}
+  if($("#v-trace").hidden)go("trace");else renderTrace();
+  requestAnimationFrame(()=>{const n=focus&&board.querySelector(`[data-fish="${focus}"]`);if(n){const p=offs(n);bw.scrollTo({left:Math.max(0,p.x*TR.scale-80),top:Math.max(0,p.y*TR.scale-80),behavior:"smooth"})}});
+  $("#tr-q").value="";return true;
+}
+$("#tr-back").onclick=()=>{const id=TR.stack.pop();if(id)openTrace(id,null,true)};
+const dl=$("#tr-list");dl.innerHTML=DB.parents.map(p=>`<option value="${p.id}">${p.origin} ${sexW(p.sex)} · ${p.crosses.length} crosses</option>`).join("");
+$("#tr-form").addEventListener("submit",e=>{e.preventDefault();const v=$("#tr-q").value.trim().toUpperCase().replace(/\s+/g,"");
+  const ok=v&&openTrace(v)||(DB.fish[v]&&DB.fish[v].cross&&openTrace(DB.fish[v].cross.dam.id,v));
+  $("#tr-msg").textContent=ok?"":`No fish with ID "${v}". Spawner IDs look like KC21-F0524; offspring like JV22-00049.`});
+$("#tr-rand").onclick=()=>{const c=DB.parents.filter(p=>p.crosses.length);openTrace(c[Math.floor(Math.random()*c.length)].id)};
+/* map ping */
+function showLoc(name){const ll=LOCS[name];if(!ll)return;go("atlas");const[x,y]=P(ll[0],ll[1]);
+  let pg=$("#ping");if(pg){pg.remove();PTS.splice(PTS.indexOf(pg),1)}pg=addPt($("#g-pts"),ll[0],ll[1],n=>{n.id="ping";el("circle",{r:16,fill:"url(#pulse)"},n);el("circle",{r:7,fill:"none",stroke:"#FF8A66","stroke-width":2},n);
+    const t=el("text",{class:"lbl lbl-town",x:11,y:-9,style:"fill:#FF8A66"},n);t.textContent=name});
+  applyVB();requestAnimationFrame(()=>flyTo(x,y,W/3.2))}
+
+/* ============ routing ============ */
+const VIEWS=["atlas","trace","method","glossary","terms"];
+function go(v,push=true){if(!VIEWS.includes(v))v="atlas";
+  VIEWS.forEach(x=>$("#v-"+x).hidden=x!==v);
+  $$("nav.tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.go===v));
+  hidePop();if(push){try{history.replaceState(null,"","#"+v)}catch(_){}}
+  if(v==="atlas")requestAnimationFrame(updateScale);
+  if(v==="trace")renderTrace();
+  window.scrollTo({top:0});
+}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(!b)return;e.preventDefault();go(b.dataset.go)});
+addEventListener("hashchange",()=>go(location.hash.slice(1),false));
+
+/* ============ terms gate ============ */
+const KEY="nooksack-pbt-terms-v1",gate=$("#gate"),ck=$("#gate-ck"),ok=$("#gate-ok");
+let accepted=false;try{accepted=localStorage.getItem(KEY)==="yes"}catch(_){}
+function openGate(){ck.checked=false;ok.disabled=true;gate.hidden=false;setTimeout(()=>ck.focus(),30)}
+ck.addEventListener("change",()=>ok.disabled=!ck.checked);
+ok.addEventListener("click",()=>{try{localStorage.setItem(KEY,"yes")}catch(_){}gate.hidden=true});
+$("#gate-read").addEventListener("click",()=>{gate.hidden=true;go("terms");setTimeout(()=>{if(!accepted)$("#reshow-gate").focus()},50)});
+$("#reshow-gate").addEventListener("click",openGate);
+gate.addEventListener("keydown",e=>{if(e.key==="Tab"){const f=[ck,$("#gate-read"),ok].filter(x=>!x.disabled);const i=f.indexOf(document.activeElement);
+  if(e.shiftKey&&i<=0){e.preventDefault();f[f.length-1].focus()}else if(!e.shiftKey&&i===f.length-1){e.preventDefault();f[0].focus()}}});
+
+/* ============ init ============ */
+TR.root=DB.feature;applyVB();overview();go(location.hash.slice(1)||"atlas",false);
+if(!accepted)openGate();
+})();
+</script>
+</body>
+</html>
